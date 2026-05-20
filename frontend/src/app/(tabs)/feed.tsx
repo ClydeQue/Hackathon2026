@@ -17,10 +17,14 @@ import type { ClothingItem, SwipeDirection } from '@/types';
 
 type FeedItem = ClothingItem & { donor_name: string };
 
+// Drag distance (px) at which the YES/NOPE overlay reaches full opacity.
+const OVERLAY_OPACITY_THRESHOLD = 120;
+
 export default function Feed() {
   const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [exhausted, setExhausted] = useState(false);
+  const [dragX, setDragX] = useState(0);
   const tabBarHeight = useBottomTabBarHeight();
 
   const load = useCallback(async () => {
@@ -121,6 +125,9 @@ export default function Feed() {
     );
   }
 
+  const yesOpacity = Math.min(Math.max(dragX, 0) / OVERLAY_OPACITY_THRESHOLD, 1);
+  const nopeOpacity = Math.min(Math.max(-dragX, 0) / OVERLAY_OPACITY_THRESHOLD, 1);
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <View style={styles.deckWrap}>
@@ -133,22 +140,30 @@ export default function Feed() {
           renderCard={(card: FeedItem) =>
             card ? <SwipeCard item={card} donorName={card.donor_name} /> : null
           }
-          onSwipedRight={(i: number) => recordSwipe(items[i], 'right')}
-          onSwipedLeft={(i: number) => recordSwipe(items[i], 'left')}
+          onSwiping={(x: number) => setDragX(x)}
+          onSwipedAborted={() => setDragX(0)}
+          onSwipedRight={(i: number) => {
+            setDragX(0);
+            recordSwipe(items[i], 'right');
+          }}
+          onSwipedLeft={(i: number) => {
+            setDragX(0);
+            recordSwipe(items[i], 'left');
+          }}
           onSwipedAll={() => setExhausted(true)}
           disableTopSwipe
           disableBottomSwipe
-          overlayLabels={{
-            left: {
-              title: 'NOPE',
-              style: { label: styles.stampNope, wrapper: styles.stampWrap },
-            },
-            right: {
-              title: 'YES',
-              style: { label: styles.stampYes, wrapper: styles.stampWrap },
-            },
-          }}
         />
+      </View>
+      <View
+        pointerEvents="none"
+        style={[styles.overlayCenter, { bottom: tabBarHeight }]}
+      >
+        {dragX > 0 ? (
+          <Text style={[styles.stampYes, { opacity: yesOpacity }]}>YES</Text>
+        ) : dragX < 0 ? (
+          <Text style={[styles.stampNope, { opacity: nopeOpacity }]}>NOPE</Text>
+        ) : null}
       </View>
     </SafeAreaView>
   );
@@ -168,9 +183,13 @@ const styles = StyleSheet.create({
   },
   refreshText: { color: '#fff', fontWeight: '600' },
   deckWrap: { flex: 1 },
-  // Centered, borderless overlay labels.
-  stampWrap: {
-    flex: 1,
+  // Borderless overlay labels, anchored to screen center (between
+  // top of SafeAreaView and the tab bar) so they don't ride with the card.
+  overlayCenter: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
