@@ -4,10 +4,15 @@ export type ItemCategory =
   | 'top'
   | 'bottom'
   | 'outerwear'
-  | 'shoes'
-  | 'accessory'
   | 'dress'
   | 'other';
+
+export type ItemCondition =
+  | 'damaged'
+  | 'used'
+  | 'barely_used'
+  | 'good'
+  | 'brand_new';
 
 export type SwipeDirection = 'left' | 'right';
 
@@ -18,6 +23,8 @@ export type Profile = {
   contact_phone: string | null;
   contact_handle: string | null;
   avatar_url: string | null;
+  latitude: number | null;
+  longitude: number | null;
   onboarded_at: string | null;
   created_at: string;
 };
@@ -30,11 +37,20 @@ export type ClothingItem = {
   color: string | null;
   material: string | null;
   brand: string | null;
+  condition: ItemCondition;
+  size: string | null;
+  gender: string | null;
   ai_tags: Record<string, unknown> | null;
   status: ItemStatus;
   created_at: string;
   updated_at: string;
   donated_at: string | null;
+  claimed_at: string | null;
+  listing_title: string | null;
+  listing_message: string | null;
+  pickup_note: string | null;
+  available_until: string | null;
+  listed_at: string | null;
 };
 
 export type Collection = {
@@ -56,5 +72,6 @@ export type ScanResult = {
   color?: string;
   material?: string;
   brand?: string;
+  condition: ItemCondition;
   raw?: unknown;
 };

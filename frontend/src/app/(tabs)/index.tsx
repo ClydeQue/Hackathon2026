@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
   Modal,
@@ -15,10 +14,12 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { ItemTile } from '@/components/ItemTile';
+import { SkeletonTile } from '@/components/Skeleton';
 import { invalidateSignedPhotoUrl, STORAGE_BUCKET, supabase } from '@/lib/supabase';
 import type { ClothingItem, Collection, ItemStatus } from '@/types';
 
-const FILTERS: ItemStatus[] = ['keep', 'archive', 'donate'];
+// Donate lives in its own tab now; the closet filter is just keep / archive.
+const FILTERS: ItemStatus[] = ['keep', 'archive'];
 
 export default function Catalogue() {
   const [filter, setFilter] = useState<ItemStatus>('keep');
@@ -133,69 +134,112 @@ export default function Catalogue() {
     );
   }
 
+  async function changeStatus(item: ClothingItem, next: ItemStatus) {
+    const { error } = await supabase
+      .from('clothing_items')
+      .update({ status: next })
+      .eq('id', item.id);
+    if (error) {
+      Alert.alert('Update failed', error.message);
+      return;
+    }
+    // The 0011 trigger closes any in-flight donation requests when
+    // status leaves 'donate'. Drop the row from the current list since
+    // it no longer matches the active filter / collection scope.
+    setItems((cur) => cur.filter((i) => i.id !== item.id));
+  }
+
+  function itemActions(item: ClothingItem) {
+    const others = (['keep', 'archive', 'donate'] as ItemStatus[]).filter(
+      (s) => s !== item.status,
+    );
+    Alert.alert(
+      item.brand ?? item.category,
+      `Currently in ${item.status}. Move to:`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        ...others.map((s) => ({
+          text: s.charAt(0).toUpperCase() + s.slice(1),
+          onPress: () => changeStatus(item, s),
+        })),
+      ],
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <View style={styles.toolbarRow}>
-        <Pressable
-          style={styles.toolbarButton}
-          onPress={() => router.push('/collections')}
-          hitSlop={8}
-        >
-          <Ionicons name="albums-outline" size={22} color="#111" />
-        </Pressable>
-        <Pressable
-          style={styles.toolbarButton}
-          onPress={confirmReset}
-          hitSlop={8}
-        >
-          <Ionicons name="refresh" size={22} color="#111" />
-        </Pressable>
-      </View>
-
-      {selectedCollectionId ? null : (
-        <View style={styles.filterRow}>
-          {FILTERS.map((f) => (
-            <Pressable
-              key={f}
-              onPress={() => setFilter(f)}
-              style={[styles.filter, filter === f && styles.filterActive]}
-            >
-              <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>
-                {f}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      )}
-
-      <View style={styles.collectionRow}>
-        <Pressable
-          style={styles.collectionDropdown}
-          onPress={() => setDropdownOpen(true)}
-        >
-          <Ionicons name="albums-outline" size={16} color="#111" />
-          <Text style={styles.collectionDropdownText} numberOfLines={1}>
-            {selectedCollectionName ?? `All ${filter} items`}
-          </Text>
-          <Ionicons name="chevron-down" size={16} color="#888" />
-        </Pressable>
-        {selectedCollectionId ? (
+        <View style={styles.toolbarLeft}>
           <Pressable
-            style={styles.collectionClear}
-            onPress={() => setSelectedCollectionId(null)}
+            style={styles.toolbarButton}
+            onPress={() => router.push('/collections')}
             hitSlop={8}
           >
-            <Ionicons name="close" size={18} color="#888" />
+            <Ionicons name="albums-outline" size={22} color="#111" />
           </Pressable>
-        ) : null}
+          {selectedCollectionId ? null : (
+            <Pressable
+              style={[
+                styles.toolbarButton,
+                filter === 'archive' && styles.toolbarButtonActive,
+              ]}
+              onPress={() => setFilter(filter === 'archive' ? 'keep' : 'archive')}
+              hitSlop={8}
+            >
+              <Ionicons
+                name={filter === 'archive' ? 'archive' : 'archive-outline'}
+                size={22}
+                color={filter === 'archive' ? '#fff' : '#111'}
+              />
+            </Pressable>
+          )}
+        </View>
+        <View style={styles.toolbarRight}>
+          <Pressable
+            style={styles.collectionDropdown}
+            onPress={() => setDropdownOpen(true)}
+          >
+            <Ionicons name="albums-outline" size={14} color="#111" />
+            <Text style={styles.collectionDropdownText} numberOfLines={1}>
+              {selectedCollectionName ?? `All ${filter}`}
+            </Text>
+            <Ionicons name="chevron-down" size={14} color="#888" />
+          </Pressable>
+          {selectedCollectionId ? (
+            <Pressable
+              style={styles.collectionClear}
+              onPress={() => setSelectedCollectionId(null)}
+              hitSlop={8}
+            >
+              <Ionicons name="close" size={16} color="#888" />
+            </Pressable>
+          ) : null}
+          <Pressable
+            style={styles.toolbarButton}
+            onPress={confirmReset}
+            hitSlop={8}
+          >
+            <Ionicons name="refresh" size={22} color="#111" />
+          </Pressable>
+        </View>
       </View>
 
       <Pressable
         style={styles.outfitButton}
-        onPress={() => router.push('/outfit')}
+        onPress={() =>
+          router.push(
+            selectedCollectionId
+              ? `/outfit?collection=${selectedCollectionId}`
+              : '/outfit',
+          )
+        }
       >
         <Ionicons name="sparkles-outline" size={16} color="#111" />
-        <Text style={styles.outfitButtonText}>Suggest an outfit</Text>
+        <Text style={styles.outfitButtonText}>
+          {selectedCollectionName
+            ? `Suggest an outfit from “${selectedCollectionName}”`
+            : 'Suggest an outfit'}
+        </Text>
       </Pressable>
 
       <Modal
@@ -265,7 +309,11 @@ export default function Catalogue() {
       </Modal>
 
       {loading ? (
-        <ActivityIndicator style={{ marginTop: 24 }} />
+        <View style={styles.skeletonGrid}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonTile key={i} />
+          ))}
+        </View>
       ) : items.length === 0 ? (
         <Text style={styles.empty}>
           {selectedCollectionId
@@ -278,13 +326,31 @@ export default function Catalogue() {
           numColumns={2}
           keyExtractor={(i) => i.id}
           contentContainerStyle={{ padding: 6 }}
-          renderItem={({ item }) => (
-            <ItemTile
-              item={item}
-              onPress={() => router.push(`/item/${item.id}`)}
-              onRemove={() => confirmDelete(item)}
-            />
-          )}
+          renderItem={({ item }) => {
+            // For donate-status rows, jump straight into the listing form so
+            // the user can finish or update their listing. Other statuses go
+            // to the regular item detail screen.
+            const isDonate =
+              item.status === 'donate' && !selectedCollectionId;
+            const badge = isDonate
+              ? item.listed_at
+                ? 'Listed'
+                : 'Draft'
+              : null;
+            return (
+              <ItemTile
+                item={item}
+                onPress={() =>
+                  isDonate
+                    ? router.push(`/donate/${item.id}`)
+                    : router.push(`/item/${item.id}`)
+                }
+                onLongPress={() => itemActions(item)}
+                onRemove={() => confirmDelete(item)}
+                badge={badge}
+              />
+            );
+          }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -308,7 +374,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
   },
-  toolbarButton: { padding: 6, borderRadius: 8 },
+  toolbarButton: {
+    padding: 8,
+    borderRadius: 4,
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderColor: '#000',
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+  },
+  toolbarButtonActive: { backgroundColor: '#000' },
+  toolbarLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   filterRow: { flexDirection: 'row', padding: 12, gap: 8 },
   filter: {
     paddingVertical: 8,
@@ -321,42 +399,65 @@ const styles = StyleSheet.create({
   filterTextActive: { color: '#fff' },
   outfitButton: {
     marginHorizontal: 12,
-    marginBottom: 4,
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: '#f6f1ea',
+    marginBottom: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 4,
+    backgroundColor: '#FFE66D',
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
     gap: 8,
+    borderWidth: 3,
+    borderColor: '#000',
+    shadowColor: '#000',
+    shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
   },
-  outfitButtonText: { fontWeight: '600' },
+  outfitButtonText: {
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    color: '#000',
+  },
   empty: { textAlign: 'center', color: '#777', marginTop: 48, paddingHorizontal: 24 },
-  collectionRow: {
+  skeletonGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    padding: 6,
+  },
+  toolbarRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  collectionDropdown: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 12,
-    paddingBottom: 8,
-  },
-  collectionDropdown: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    backgroundColor: '#f3f3f3',
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    borderRadius: 4,
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderColor: '#000',
+    maxWidth: 180,
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
   },
   collectionDropdownText: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111',
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#000',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    flexShrink: 1,
   },
   collectionClear: {
-    padding: 6,
+    padding: 4,
     borderRadius: 999,
   },
   modalBackdrop: {

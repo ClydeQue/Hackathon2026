@@ -11,7 +11,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#FFE66D"
     },
     "ios": {
       "supportsTablet": true,
@@ -43,6 +43,12 @@
         "expo-image-picker",
         {
           "photosPermission": "Allow SlowFashion to access your photos so you can add clothes to your catalogue."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow SlowFashion to use your location to set the pickup point for donations."
         }
       ]
     ],

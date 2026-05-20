@@ -1,21 +1,36 @@
 import { StyleSheet, Text, TextInput, View } from 'react-native';
-import type { ItemCategory } from '@/types';
+import type { ItemCategory, ItemCondition } from '@/types';
 
 const CATEGORIES: ItemCategory[] = [
   'top',
   'bottom',
   'outerwear',
-  'shoes',
-  'accessory',
   'dress',
   'other',
 ];
+
+const CONDITIONS: ItemCondition[] = [
+  'damaged',
+  'used',
+  'barely_used',
+  'good',
+  'brand_new',
+];
+
+const CONDITION_LABEL: Record<ItemCondition, string> = {
+  damaged: 'damaged',
+  used: 'used',
+  barely_used: 'barely used',
+  good: 'good',
+  brand_new: 'brand new',
+};
 
 export type TagEditorValue = {
   category: ItemCategory;
   color: string;
   material: string;
   brand: string;
+  condition: ItemCondition;
 };
 
 export type TagEditorErrors = Partial<Record<keyof TagEditorValue, string>>;
@@ -81,6 +96,23 @@ export function TagEditor({ value, onChange, errors }: Props) {
         onChangeText={(t) => onChange({ ...value, brand: t })}
         placeholder="optional"
       />
+
+      <RequiredLabel>Condition</RequiredLabel>
+      <View style={styles.chips}>
+        {CONDITIONS.map((c) => {
+          const selected = value.condition === c;
+          return (
+            <Text
+              key={c}
+              onPress={() => onChange({ ...value, condition: c })}
+              style={[styles.chip, selected && styles.chipSelected]}
+            >
+              {CONDITION_LABEL[c]}
+            </Text>
+          );
+        })}
+      </View>
+      {errors?.condition ? <Text style={styles.error}>{errors.condition}</Text> : null}
     </View>
   );
 }

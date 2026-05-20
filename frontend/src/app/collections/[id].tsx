@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
   Pressable,
@@ -8,6 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { Spinner } from '@/components/Spinner';
 import { Image } from 'expo-image';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -253,7 +253,7 @@ export default function CollectionDetail() {
   if (loading || !collection) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator />
+        <Spinner />
       </View>
     );
   }
@@ -301,7 +301,12 @@ export default function CollectionDetail() {
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
+        <Pressable
+          onPress={() =>
+            router.canGoBack() ? router.back() : router.replace('/collections')
+          }
+          hitSlop={12}
+        >
           <Ionicons name="chevron-back" size={26} color="#111" />
         </Pressable>
         <Text style={styles.headerTitle} numberOfLines={1}>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   Alert,
   Image,
@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { Spinner } from '@/components/Spinner';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,6 +19,7 @@ import {
   type TagEditorErrors,
   type TagEditorValue,
 } from '@/components/TagEditor';
+import { scanPhoto } from '@/lib/api';
 import { createItemFromPickedPhoto } from '@/lib/items';
 
 type Stage = 'pick' | 'confirm' | 'saving';
@@ -27,6 +29,7 @@ const DEFAULT_TAGS: TagEditorValue = {
   color: '',
   material: '',
   brand: '',
+  condition: 'good',
 };
 
 function validate(tags: TagEditorValue): TagEditorErrors {
@@ -34,6 +37,7 @@ function validate(tags: TagEditorValue): TagEditorErrors {
   if (!tags.category) errors.category = 'Pick a category.';
   if (!tags.color.trim()) errors.color = 'Color is required.';
   if (!tags.material.trim()) errors.material = 'Material is required.';
+  if (!tags.condition) errors.condition = 'Pick a condition.';
   return errors;
 }
 
@@ -43,12 +47,22 @@ export default function AddItem() {
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [tags, setTags] = useState<TagEditorValue>(DEFAULT_TAGS);
   const [errors, setErrors] = useState<TagEditorErrors>({});
+  const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const aiTagsRef = useRef<Record<string, unknown> | null>(null);
+  // Bumped on every reset/pick so an in-flight scan from a discarded
+  // photo can't race-write tags onto the next photo.
+  const scanGenRef = useRef(0);
 
   function reset() {
+    scanGenRef.current += 1;
     setStage('pick');
     setPhotoUri(null);
     setTags(DEFAULT_TAGS);
     setErrors({});
+    setScanning(false);
+    setScanError(null);
+    aiTagsRef.current = null;
   }
 
   function updateTags(next: TagEditorValue) {
@@ -86,9 +100,44 @@ export default function AddItem() {
             quality: 0.8,
           });
     if (result.canceled || !result.assets?.[0]) return;
-    setPhotoUri(result.assets[0].uri);
+    const uri = result.assets[0].uri;
+    setPhotoUri(uri);
     setTags(DEFAULT_TAGS);
     setStage('confirm');
+    void runScan(uri);
+  }
+
+  async function runScan(uri: string) {
+    scanGenRef.current += 1;
+    const gen = scanGenRef.current;
+    setScanning(true);
+    setScanError(null);
+    aiTagsRef.current = null;
+    console.log('[add] scan starting', { uri });
+    try {
+      const result = await scanPhoto(uri);
+      if (gen !== scanGenRef.current) return;
+      console.log('[add] scan result', result);
+      aiTagsRef.current = (result.raw as Record<string, unknown> | undefined) ?? null;
+      // Only fill fields the user hasn't already edited away from defaults.
+      setTags((current) => ({
+        category:
+          current.category === DEFAULT_TAGS.category ? result.category ?? current.category : current.category,
+        color: current.color === DEFAULT_TAGS.color && result.color ? result.color : current.color,
+        material:
+          current.material === DEFAULT_TAGS.material && result.material ? result.material : current.material,
+        brand: current.brand === DEFAULT_TAGS.brand && result.brand ? result.brand : current.brand,
+        condition:
+          current.condition === DEFAULT_TAGS.condition ? result.condition ?? current.condition : current.condition,
+      }));
+    } catch (err: any) {
+      console.warn('[add] scan failed', err);
+      if (gen === scanGenRef.current) {
+        setScanError(err?.message ?? 'Auto-tag unavailable.');
+      }
+    } finally {
+      if (gen === scanGenRef.current) setScanning(false);
+    }
   }
 
   async function save() {
@@ -111,6 +160,8 @@ export default function AddItem() {
         color: tags.color || null,
         material: tags.material || null,
         brand: tags.brand || null,
+        condition: tags.condition,
+        ai_tags: aiTagsRef.current,
       });
       reset();
       router.replace('/(tabs)');
@@ -146,11 +197,35 @@ export default function AddItem() {
 
         {stage === 'confirm' || stage === 'saving' ? (
           <>
-            <Text style={styles.title}>Tag this item</Text>
+            <Text style={styles.title}>Review tags</Text>
             <Text style={styles.hint}>
-              Pick a category and add details, then save. Fields marked{' '}
-              <Text style={styles.requiredHint}>*</Text> are required.
+              We've auto-filled what we could see. Fix anything that's off, then save.
+              Fields marked <Text style={styles.requiredHint}>*</Text> are required.
             </Text>
+            {scanning ? (
+              <View style={styles.scanPill}>
+                <Spinner size="small" color="#111" />
+                <Text style={styles.scanPillText}>Scanning photo…</Text>
+              </View>
+            ) : null}
+            {!scanning && scanError ? (
+              <View style={[styles.scanPill, styles.scanPillError]}>
+                <Ionicons name="alert-circle-outline" size={16} color="#a00" />
+                <Text style={styles.scanPillErrorText}>
+                  {scanError} Fill the tags below to continue.
+                </Text>
+                {photoUri ? (
+                  <Pressable
+                    onPress={() => runScan(photoUri)}
+                    style={styles.retryBtn}
+                    hitSlop={8}
+                  >
+                    <Ionicons name="refresh" size={14} color="#a00" />
+                    <Text style={styles.retryBtnText}>Retry</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : null}
             <TagEditor value={tags} onChange={updateTags} errors={errors} />
             <Pressable
               style={[styles.save, stage === 'saving' && { opacity: 0.6 }]}
@@ -202,4 +277,29 @@ const styles = StyleSheet.create({
   saveText: { color: '#fff', fontWeight: '600' },
   cancel: { marginTop: 8, padding: 12, alignItems: 'center' },
   cancelText: { color: '#a00' },
+  scanPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: '#f1f1f1',
+    marginTop: 8,
+  },
+  scanPillText: { color: '#111', fontWeight: '500' },
+  scanPillError: { backgroundColor: '#fdecec', flexWrap: 'wrap' },
+  scanPillErrorText: { color: '#a00', fontWeight: '500', flexShrink: 1 },
+  retryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#a00',
+  },
+  retryBtnText: { color: '#a00', fontWeight: '600', fontSize: 12 },
 });

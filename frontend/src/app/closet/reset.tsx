@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { Spinner } from '@/components/Spinner';
 import { Image } from 'expo-image';
 import { Stack, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -88,7 +88,7 @@ export default function ClosetReset() {
   if (items === null) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator />
+        <Spinner />
       </View>
     );
   }
@@ -100,7 +100,7 @@ export default function ClosetReset() {
         <View style={styles.center}>
           <Text style={styles.emptyTitle}>Nothing to re-sort.</Text>
           <Text style={styles.emptyBody}>Add a few items first, then come back.</Text>
-          <Pressable style={styles.doneBtn} onPress={() => router.back()}>
+          <Pressable style={styles.doneBtn} onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}>
             <Text style={styles.doneText}>Go back</Text>
           </Pressable>
         </View>
@@ -112,11 +112,11 @@ export default function ClosetReset() {
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
+        <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))} hitSlop={12}>
           <Text style={styles.cancelText}>Cancel</Text>
         </Pressable>
         <Text style={styles.headerTitle}>Re-sort closet</Text>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
+        <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))} hitSlop={12}>
           <Text style={styles.doneInlineText}>Done</Text>
         </Pressable>
       </View>
@@ -126,7 +126,9 @@ export default function ClosetReset() {
         renderCard={(item) => <ItemCard item={item} />}
         onSwipeRight={(item) => updateStatus(item, 'keep')}
         onSwipeLeft={(item) => updateStatus(item, 'archive')}
-        onAllDone={() => router.back()}
+        onAllDone={() =>
+          router.canGoBack() ? router.back() : router.replace('/(tabs)')
+        }
         rightLabel="KEEP"
         leftLabel="ARCHIVE"
       />

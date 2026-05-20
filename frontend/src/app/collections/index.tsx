@@ -1,12 +1,12 @@
 import { useCallback, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { Spinner } from '@/components/Spinner';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -49,7 +49,7 @@ export default function CollectionsList() {
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
+        <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))} hitSlop={12}>
           <Ionicons name="chevron-back" size={26} color="#111" />
         </Pressable>
         <Text style={styles.headerTitle}>Collections</Text>
@@ -57,7 +57,7 @@ export default function CollectionsList() {
       </View>
 
       {items === null ? (
-        <ActivityIndicator style={{ marginTop: 24 }} />
+        <Spinner style={{ marginTop: 24 }} />
       ) : items.length === 0 ? (
         <View style={styles.empty}>
           <Text style={styles.emptyTitle}>No collections yet.</Text>

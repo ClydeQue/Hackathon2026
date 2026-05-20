@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -10,6 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Spinner } from '@/components/Spinner';
 import { Image } from 'expo-image';
 import { Stack, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -134,7 +134,7 @@ export default function NewCollection() {
           style={{ flex: 1 }}
         >
           <View style={styles.header}>
-            <Pressable onPress={() => router.back()} hitSlop={12}>
+            <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace('/collections'))} hitSlop={12}>
               <Text style={styles.cancelText}>Cancel</Text>
             </Pressable>
             <Text style={styles.headerTitle}>New collection</Text>
@@ -173,7 +173,7 @@ export default function NewCollection() {
   if (items === null) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator />
+        <Spinner />
       </View>
     );
   }

@@ -16,15 +16,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { ActionSwiperDeck } from '@/components/ActionSwiperDeck';
 import { createItemFromPickedPhoto } from '@/lib/items';
 import { supabase } from '@/lib/supabase';
+import { DM_SERIF } from '@/lib/fonts';
 import type { ItemStatus } from '@/types';
 
 const MAX_BATCH = 30;
 
-type Stage = 'pick' | 'swipe';
+type Stage = 'intro' | 'pick' | 'swipe';
 
 export default function Onboarding() {
   const router = useRouter();
-  const [stage, setStage] = useState<Stage>('pick');
+  const [stage, setStage] = useState<Stage>('intro');
   const [queue, setQueue] = useState<string[]>([]);
 
   async function finish() {
@@ -100,6 +101,65 @@ export default function Onboarding() {
     createItemFromPickedPhoto({ uri, status }).catch((err) => {
       console.warn('[onboarding] upload failed for', uri, err?.message);
     });
+  }
+
+  // ---- Intro --------------------------------------------------------------
+  if (stage === 'intro') {
+    return (
+      <SafeAreaView style={styles.introContainer} edges={['top', 'bottom']}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <ScrollView
+          contentContainerStyle={styles.introScroll}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.introTagRow}>
+            <View style={styles.introTag}>
+              <Text style={styles.introTagText}>STEP 1 OF 2</Text>
+              <Ionicons name="arrow-forward" size={11} color="#fff" />
+            </View>
+            <Pressable onPress={finish} hitSlop={12}>
+              <Text style={styles.introSkip}>Skip</Text>
+            </Pressable>
+          </View>
+
+          <Text style={styles.introHeadline}>
+            Your closet's{'\n'}bigger than{' '}
+            <Text style={styles.introHighlight}>you think</Text>.
+          </Text>
+
+          <Text style={styles.introBody}>
+            Snap or import a few photos and we'll{' '}
+            <Text style={styles.introUnderline}>auto-tag</Text> each piece. Then
+            you'll swipe through your closet to mark what to{' '}
+            <Text style={styles.introUnderline}>keep</Text> or{' '}
+            <Text style={styles.introUnderline}>archive</Text>.
+          </Text>
+
+          <View style={[styles.quoteCard, { transform: [{ rotate: '-2deg' }] }]}>
+            <Text style={styles.quoteText}>
+              "Found 6 shirts I haven't touched in 2 years."
+            </Text>
+            <Text style={styles.quoteAuthor}>— ally, last week</Text>
+          </View>
+
+          <View style={[styles.stickyCard, { transform: [{ rotate: '1.5deg' }] }]}>
+            <Text style={styles.stickyTitle}>WHAT YOU'LL NEED</Text>
+            <View style={styles.stickyList}>
+              <Text style={styles.stickyItem}>— your camera or library</Text>
+              <Text style={styles.stickyItem}>— ~5 minutes</Text>
+              <Text style={styles.stickyItem}>— closet door open</Text>
+            </View>
+          </View>
+        </ScrollView>
+
+        <View style={styles.introCtaWrap}>
+          <Pressable style={styles.introCta} onPress={() => setStage('pick')}>
+            <Text style={styles.introCtaText}>OK, ADD PHOTOS</Text>
+            <Ionicons name="arrow-forward" size={18} color="#fff" />
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   if (stage === 'swipe') {
@@ -296,4 +356,126 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   cardImage: { flex: 1, backgroundColor: '#eee' },
+
+  // ---- Intro --------------------------------------------------------------
+  introContainer: { flex: 1, backgroundColor: '#fdfaf2' },
+  introScroll: { paddingHorizontal: 24, paddingTop: 8, paddingBottom: 120 },
+
+  introTagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 28,
+  },
+  introTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: '#d63a2f',
+  },
+  introTagText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+  },
+  introSkip: { color: '#888', fontWeight: '600', fontSize: 14 },
+
+  introHeadline: {
+    fontFamily: DM_SERIF.regular,
+    fontSize: 44,
+    lineHeight: 48,
+    color: '#111',
+    marginBottom: 18,
+  },
+  introHighlight: {
+    backgroundColor: '#ffe14a',
+    color: '#111',
+  },
+
+  introBody: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#333',
+    marginBottom: 28,
+  },
+  introUnderline: {
+    color: '#111',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+
+  quoteCard: {
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: '#111',
+    borderRadius: 10,
+    padding: 14,
+    marginTop: 4,
+    marginBottom: 22,
+    alignSelf: 'flex-start',
+    maxWidth: '88%',
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    shadowOffset: { width: 3, height: 4 },
+    elevation: 3,
+  },
+  quoteText: { fontSize: 14, color: '#111', fontWeight: '600', lineHeight: 20 },
+  quoteAuthor: { fontSize: 11, color: '#666', marginTop: 6, fontWeight: '500' },
+
+  stickyCard: {
+    backgroundColor: '#fff3a0',
+    borderWidth: 1.5,
+    borderColor: '#111',
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 12,
+    alignSelf: 'flex-end',
+    maxWidth: '85%',
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    shadowOffset: { width: 3, height: 4 },
+    elevation: 3,
+  },
+  stickyTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.1,
+    color: '#111',
+    marginBottom: 8,
+  },
+  stickyList: { gap: 4 },
+  stickyItem: { fontSize: 13, color: '#111', fontWeight: '500' },
+
+  introCtaWrap: {
+    position: 'absolute',
+    left: 24,
+    right: 24,
+    bottom: 32,
+  },
+  introCta: {
+    backgroundColor: '#111',
+    paddingVertical: 18,
+    borderRadius: 999,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
+  },
+  introCtaText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+  },
 });

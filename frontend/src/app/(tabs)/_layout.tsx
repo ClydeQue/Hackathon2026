@@ -1,7 +1,10 @@
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Tabs } from 'expo-router';
+import { Image } from 'expo-image';
+import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
+import { avatarPublicUrl, supabase } from '@/lib/supabase';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -14,7 +17,7 @@ function CenterAddButton(props: BottomTabBarButtonProps) {
       style={styles.centerButton}
     >
       <View style={styles.centerCircle}>
-        <Ionicons name="add" size={30} color="#fff" />
+        <Ionicons name="add" size={30} color="#000" />
       </View>
     </Pressable>
   );
@@ -32,6 +35,86 @@ function TabIcon({
   return <Ionicons name={name} size={size} color={color} />;
 }
 
+// Caches the current user's avatar path so the header doesn't re-query
+// Supabase on every screen mount. Refreshes when auth state flips (e.g. a
+// new sign-in) so a different user lands here with their own picture.
+function useCurrentAvatarPath(): string | null {
+  const [path, setPath] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadOnce() {
+      const { data: u } = await supabase.auth.getUser();
+      if (cancelled || !u.user) return;
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('avatar_url')
+        .eq('user_id', u.user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      setPath((profile?.avatar_url as string | null) ?? null);
+    }
+
+    loadOnce();
+
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      loadOnce();
+    });
+
+    return () => {
+      cancelled = true;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+
+  return path;
+}
+
+function HeaderProfileButton() {
+  const router = useRouter();
+  const avatarPath = useCurrentAvatarPath();
+  return (
+    <Pressable
+      onPress={() => router.push('/profile')}
+      hitSlop={10}
+      style={{ paddingHorizontal: 14 }}
+    >
+      {avatarPath ? (
+        <Image
+          source={{
+            uri: avatarPublicUrl(avatarPath),
+            cacheKey: avatarPath,
+          }}
+          style={styles.headerAvatar}
+          contentFit="cover"
+          transition={150}
+        />
+      ) : (
+        <Ionicons name="person-circle-outline" size={28} color="#111" />
+      )}
+    </Pressable>
+  );
+}
+
+// Tabs don't auto-render a back button. Profile is reachable via push from
+// every other tab header, so we wire one in manually with a safe fallback
+// for the no-history case (deep links, cold open).
+function HeaderBackButton() {
+  const router = useRouter();
+  return (
+    <Pressable
+      onPress={() =>
+        router.canGoBack() ? router.back() : router.replace('/(tabs)')
+      }
+      hitSlop={10}
+      style={{ paddingHorizontal: 14 }}
+    >
+      <Ionicons name="chevron-back" size={26} color="#111" />
+    </Pressable>
+  );
+}
+
 export default function TabsLayout() {
   return (
     <Tabs
@@ -41,6 +124,9 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: '#9a9a9a',
         tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.tabLabel,
+        // Profile is reachable from every tab via the header. The Profile
+        // screen itself overrides this in its own Stack.Screen options.
+        headerRight: () => <HeaderProfileButton />,
       }}
     >
       <Tabs.Screen
@@ -53,9 +139,9 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="feed"
+        name="discover"
         options={{
-          title: 'Feed',
+          title: 'Discover',
           tabBarIcon: ({ color, size }) => (
             <TabIcon name="heart-outline" color={color} size={size} />
           ),
@@ -69,21 +155,34 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="cart"
+        name="box"
         options={{
-          title: 'Cart',
+          title: 'Box',
           tabBarIcon: ({ color, size }) => (
             <TabIcon name="bag-outline" color={color} size={size} />
           ),
         }}
       />
       <Tabs.Screen
+        name="donations"
+        options={{
+          title: 'Donate',
+          tabBarIcon: ({ color, size }) => (
+            <TabIcon name="gift-outline" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
+          // Keep the route reachable via router.push('/profile') but hide it
+          // from the bottom bar; the entry point lives in the closet header.
+          href: null,
           title: 'Profile',
-          tabBarIcon: ({ color, size }) => (
-            <TabIcon name="person-outline" color={color} size={size} />
-          ),
+          headerLeft: () => <HeaderBackButton />,
+          // Don't render the redundant profile shortcut when you're already
+          // on the profile screen.
+          headerRight: () => null,
         }}
       />
     </Tabs>
@@ -91,6 +190,14 @@ export default function TabsLayout() {
 }
 
 const styles = StyleSheet.create({
+  headerAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#eee',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#ddd',
+  },
   tabBar: {
     height: 70,
     paddingTop: 6,
@@ -108,14 +215,16 @@ const styles = StyleSheet.create({
   centerCircle: {
     width: 60,
     height: 60,
-    borderRadius: 30,
-    backgroundColor: '#111',
+    borderRadius: 6,
+    backgroundColor: '#FFE66D',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#000',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 0,
   },
 });

@@ -13,8 +13,6 @@ function bucket(items: ClothingItem[]): Bucket {
     top: [],
     bottom: [],
     outerwear: [],
-    shoes: [],
-    accessory: [],
     dress: [],
     other: [],
   };
@@ -70,14 +68,6 @@ export function recommendOutfits(items: ClothingItem[], count = 5): Outfit[] {
     if (b.outerwear.length && Math.random() < 0.5) {
       const o = pick(b.outerwear);
       if (o) core.push(o);
-    }
-    if (b.shoes.length && Math.random() < 0.7) {
-      const s = pick(b.shoes);
-      if (s) core.push(s);
-    }
-    if (b.accessory.length && Math.random() < 0.3) {
-      const a = pick(b.accessory);
-      if (a) core.push(a);
     }
 
     if (!compatibleAll(core)) continue;

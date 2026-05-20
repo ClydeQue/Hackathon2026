@@ -1,7 +1,7 @@
 import * as Crypto from 'expo-crypto';
 import { readAsStringAsync } from 'expo-file-system/legacy';
 import { STORAGE_BUCKET, supabase } from './supabase';
-import type { ClothingItem, ItemCategory, ItemStatus } from '@/types';
+import type { ClothingItem, ItemCategory, ItemCondition, ItemStatus } from '@/types';
 
 function base64ToBytes(b64: string): Uint8Array {
   const bin = global.atob(b64);
@@ -17,6 +17,8 @@ export type CreateItemInput = {
   color?: string | null;
   material?: string | null;
   brand?: string | null;
+  condition?: ItemCondition;
+  ai_tags?: Record<string, unknown> | null;
 };
 
 // Uploads the picked photo to storage and inserts a clothing_items row.
@@ -54,7 +56,8 @@ export async function createItemFromPickedPhoto(input: CreateItemInput): Promise
       color: input.color ?? null,
       material: input.material ?? null,
       brand: input.brand ?? null,
-      ai_tags: null,
+      condition: input.condition ?? 'good',
+      ai_tags: input.ai_tags ?? null,
       status: input.status,
     })
     .select()

@@ -1,36 +1,63 @@
 import { useCallback, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Animated,
   Pressable,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
+import { Spinner } from '@/components/Spinner';
 import { useFocusEffect } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import Swiper from 'react-native-deck-swiper';
 import { SwipeCard } from '@/components/SwipeCard';
 import { supabase } from '@/lib/supabase';
 import type { ClothingItem, SwipeDirection } from '@/types';
 
-type FeedItem = ClothingItem & { donor_name: string };
+type DiscoverItem = ClothingItem & { donor_name: string };
 
 // Drag distance (px) at which the YES/NOPE stamp reaches full opacity/scale.
 const STAMP_THRESHOLD = 120;
 
-// Card height in px. react-native-deck-swiper sizes from Dimensions.get('window')
-// and ignores the parent container, so we override via the Swiper's cardStyle.
-const CARD_HEIGHT = 750;
+// Visual ceiling on the card — looks oversized on tablets / very tall phones.
+const MAX_CARD_HEIGHT = 750;
+// Floor so the card never collapses on truly tiny devices.
+const MIN_CARD_HEIGHT = 420;
+// Approximate non-card chrome above the deck (navigator header). Hard to
+// measure cleanly across platforms; this is a conservative guess that errs
+// toward making the card a bit shorter rather than overflow.
+const HEADER_RESERVE = 60;
+// Breathing room above the card so it doesn't kiss the navigator header.
+const TOP_GUTTER = 12;
 
-export default function Feed() {
-  const [items, setItems] = useState<FeedItem[]>([]);
+export default function Discover() {
+  const [items, setItems] = useState<DiscoverItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [exhausted, setExhausted] = useState(false);
   const dragX = useRef(new Animated.Value(0)).current;
   const tabBarHeight = useBottomTabBarHeight();
+  const { height: windowHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+
+  // Available vertical space for the deck after subtracting the navigator
+  // header, the bottom tab bar, and the top/bottom safe-area insets. Clamped
+  // to a sane min/max so the card never overflows on small phones nor
+  // stretches absurdly tall on iPads.
+  const cardHeight = Math.max(
+    MIN_CARD_HEIGHT,
+    Math.min(
+      MAX_CARD_HEIGHT,
+      windowHeight -
+        tabBarHeight -
+        insets.top -
+        insets.bottom -
+        HEADER_RESERVE -
+        TOP_GUTTER,
+    ),
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -48,8 +75,10 @@ export default function Feed() {
       .from('clothing_items')
       .select('*')
       .eq('status', 'donate')
+      .not('listed_at', 'is', null)
+      .is('claimed_at', null)
       .neq('owner_id', u.user.id)
-      .order('donated_at', { ascending: false })
+      .order('listed_at', { ascending: false })
       .limit(30);
 
     if (excluded.length > 0) {
@@ -58,7 +87,7 @@ export default function Feed() {
 
     const { data: itemRows, error } = await query;
     if (error) {
-      Alert.alert('Feed error', error.message);
+      Alert.alert('Discover error', error.message);
       setLoading(false);
       return;
     }
@@ -77,7 +106,7 @@ export default function Feed() {
       }
     }
 
-    const mapped: FeedItem[] = rows.map((row) => ({
+    const mapped: DiscoverItem[] = rows.map((row) => ({
       ...row,
       donor_name: nameById.get(row.owner_id) ?? 'Someone',
     }));
@@ -92,7 +121,7 @@ export default function Feed() {
     }, [load]),
   );
 
-  async function recordSwipe(item: FeedItem | undefined, direction: SwipeDirection) {
+  async function recordSwipe(item: DiscoverItem | undefined, direction: SwipeDirection) {
     // react-native-deck-swiper sometimes fires onSwiped* with stale / out-of-
     // range indices when the deck is empty or being torn down — guard before
     // touching item.id.
@@ -120,7 +149,7 @@ export default function Feed() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator />
+        <Spinner />
       </View>
     );
   }
@@ -134,7 +163,7 @@ export default function Feed() {
         .from('swipes')
         .delete()
         .eq('swiper_id', u.user.id);
-      if (error) console.warn('[feed] clear swipes failed', error.message);
+      if (error) console.warn('[discover] clear swipes failed', error.message);
     }
     setExhausted(false);
     load();
@@ -177,15 +206,20 @@ export default function Feed() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <View style={[styles.deckWrap, { paddingBottom: tabBarHeight }]}>
-        <View style={styles.deckSlot}>
+      <View
+        style={[
+          styles.deckWrap,
+          { paddingTop: TOP_GUTTER, paddingBottom: tabBarHeight },
+        ]}
+      >
+        <View style={[styles.deckSlot, { maxHeight: cardHeight }]}>
           <Swiper
             cards={items}
             backgroundColor="transparent"
             stackSize={3}
             cardVerticalMargin={0}
-            cardStyle={{ top: 0, height: CARD_HEIGHT }}
-            renderCard={(card: FeedItem) =>
+            cardStyle={{ top: 0, height: cardHeight }}
+            renderCard={(card: DiscoverItem) =>
               card ? <SwipeCard item={card} donorName={card.donor_name} /> : null
             }
             onSwiping={(x: number) => dragX.setValue(x)}
@@ -253,7 +287,8 @@ const styles = StyleSheet.create({
   deckWrap: { flex: 1 },
   // Card slot is pinned to the top of the deckWrap with a hard ceiling on
   // height so the card stays short rather than stretching to fill the screen.
-  deckSlot: { flex: 1, maxHeight: CARD_HEIGHT },
+  // maxHeight is applied inline from the responsive cardHeight value.
+  deckSlot: { flex: 1 },
   // Fills the deckSlot so the YES/NOPE stamp centers on the card, not on the
   // empty space below it. elevation/zIndex keep it above the deck on both
   // iOS (zIndex) and Android (elevation).
