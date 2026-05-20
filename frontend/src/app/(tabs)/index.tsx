@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   RefreshControl,
@@ -12,7 +13,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { ItemTile } from '@/components/ItemTile';
-import { supabase } from '@/lib/supabase';
+import { invalidateSignedPhotoUrl, STORAGE_BUCKET, supabase } from '@/lib/supabase';
 import type { ClothingItem, ItemStatus } from '@/types';
 
 const FILTERS: ItemStatus[] = ['keep', 'archive', 'donate'];
@@ -45,8 +46,65 @@ export default function Catalogue() {
     }, [load]),
   );
 
+  function confirmDelete(item: ClothingItem) {
+    Alert.alert(
+      'Delete item?',
+      `${item.brand ?? item.category} will be permanently removed.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await supabase
+              .from('clothing_items')
+              .delete()
+              .eq('id', item.id);
+            if (error) {
+              Alert.alert('Delete failed', error.message);
+              return;
+            }
+            // Best-effort cleanup; ignore failures so a stale storage object
+            // never blocks the row deletion the user just confirmed.
+            supabase.storage.from(STORAGE_BUCKET).remove([item.photo_path]).catch(() => {});
+            invalidateSignedPhotoUrl(item.photo_path);
+            setItems((cur) => cur.filter((i) => i.id !== item.id));
+          },
+        },
+      ],
+    );
+  }
+
+  function confirmReset() {
+    Alert.alert(
+      'Re-sort closet?',
+      'Walk through every kept and archived item and re-pick keep or archive for each.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Start', onPress: () => router.push('/closet/reset') },
+      ],
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
+      <View style={styles.toolbarRow}>
+        <Pressable
+          style={styles.toolbarButton}
+          onPress={() => router.push('/collections')}
+          hitSlop={8}
+        >
+          <Ionicons name="albums-outline" size={22} color="#111" />
+        </Pressable>
+        <Pressable
+          style={styles.toolbarButton}
+          onPress={confirmReset}
+          hitSlop={8}
+        >
+          <Ionicons name="refresh" size={22} color="#111" />
+        </Pressable>
+      </View>
+
       <View style={styles.filterRow}>
         {FILTERS.map((f) => (
           <Pressable
@@ -82,7 +140,11 @@ export default function Catalogue() {
           keyExtractor={(i) => i.id}
           contentContainerStyle={{ padding: 6 }}
           renderItem={({ item }) => (
-            <ItemTile item={item} onPress={() => router.push(`/item/${item.id}`)} />
+            <ItemTile
+              item={item}
+              onPress={() => router.push(`/item/${item.id}`)}
+              onRemove={() => confirmDelete(item)}
+            />
           )}
           refreshControl={
             <RefreshControl
@@ -101,6 +163,13 @@ export default function Catalogue() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
+  toolbarRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  toolbarButton: { padding: 6, borderRadius: 8 },
   filterRow: { flexDirection: 'row', padding: 12, gap: 8 },
   filter: {
     paddingVertical: 8,

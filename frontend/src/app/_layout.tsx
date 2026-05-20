@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase';
 export default function RootLayout() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [needsOnboarding, setNeedsOnboarding] = useState<boolean | null>(null);
   const segments = useSegments();
   const router = useRouter();
 
@@ -23,15 +24,43 @@ export default function RootLayout() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
+  // Fetch onboarding status whenever the session's user changes.
+  useEffect(() => {
+    if (!session?.user) {
+      setNeedsOnboarding(null);
+      return;
+    }
+    let cancelled = false;
+    supabase
+      .from('profiles')
+      .select('onboarded_at')
+      .eq('user_id', session.user.id)
+      .single()
+      .then(({ data }) => {
+        if (cancelled) return;
+        setNeedsOnboarding(!data?.onboarded_at);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user?.id]);
+
   useEffect(() => {
     if (loading) return;
     const inAuthGroup = segments[0] === '(auth)';
+    const inOnboarding = segments[0] === 'onboarding';
     if (!session && !inAuthGroup) {
       router.replace('/(auth)/sign-in');
-    } else if (session && inAuthGroup) {
+      return;
+    }
+    if (session && needsOnboarding === true && !inOnboarding) {
+      router.replace('/onboarding');
+      return;
+    }
+    if (session && needsOnboarding === false && (inAuthGroup || inOnboarding)) {
       router.replace('/(tabs)');
     }
-  }, [session, loading, segments, router]);
+  }, [session, loading, needsOnboarding, segments, router]);
 
   if (loading) {
     return (

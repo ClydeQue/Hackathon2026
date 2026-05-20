@@ -8,8 +8,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import * as Crypto from 'expo-crypto';
-import { readAsStringAsync } from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,7 +17,7 @@ import {
   type TagEditorErrors,
   type TagEditorValue,
 } from '@/components/TagEditor';
-import { STORAGE_BUCKET, supabase } from '@/lib/supabase';
+import { createItemFromPickedPhoto } from '@/lib/items';
 
 type Stage = 'pick' | 'confirm' | 'saving';
 
@@ -29,13 +27,6 @@ const DEFAULT_TAGS: TagEditorValue = {
   material: '',
   brand: '',
 };
-
-function base64ToBytes(b64: string): Uint8Array {
-  const bin = global.atob(b64);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
 
 function validate(tags: TagEditorValue): TagEditorErrors {
   const errors: TagEditorErrors = {};
@@ -104,44 +95,14 @@ export default function AddItem() {
     setErrors({});
     setStage('saving');
     try {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) throw new Error('Not signed in');
-
-      const itemId = Crypto.randomUUID();
-      const path = `${u.user.id}/${itemId}.jpg`;
-
-      // RN's fetch().blob() returns an empty blob for file:// URIs, and the
-      // SDK 54 `new File(uri)` ctor doesn't accept raw URI strings — both
-      // silently produce 0-byte uploads. Read base64 and decode to bytes.
-      const base64 = await readAsStringAsync(photoUri, { encoding: 'base64' });
-      const bytes = base64ToBytes(base64);
-      console.log(`[add] uploading ${path} (${bytes.byteLength} bytes)`);
-      if (bytes.byteLength === 0) throw new Error('Read 0 bytes from picked photo.');
-      const { error: upErr } = await supabase.storage
-        .from(STORAGE_BUCKET)
-        .upload(path, bytes, { contentType: 'image/jpeg', upsert: false });
-      if (upErr) {
-        if (/bucket.*not found/i.test(upErr.message)) {
-          throw new Error(
-            `Storage bucket "${STORAGE_BUCKET}" is missing. Run supabase/migrations/0002_storage.sql in Supabase Studio.`,
-          );
-        }
-        throw upErr;
-      }
-
-      const { error: insErr } = await supabase.from('clothing_items').insert({
-        id: itemId,
-        owner_id: u.user.id,
-        photo_path: path,
+      await createItemFromPickedPhoto({
+        uri: photoUri,
+        status: 'keep',
         category: tags.category,
         color: tags.color || null,
         material: tags.material || null,
         brand: tags.brand || null,
-        ai_tags: null,
-        status: 'keep',
       });
-      if (insErr) throw insErr;
-
       reset();
       router.replace('/(tabs)');
     } catch (err: any) {

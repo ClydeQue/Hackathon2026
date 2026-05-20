@@ -1,7 +1,8 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Pressable,
   StyleSheet,
   Text,
@@ -17,14 +18,14 @@ import type { ClothingItem, SwipeDirection } from '@/types';
 
 type FeedItem = ClothingItem & { donor_name: string };
 
-// Drag distance (px) at which the YES/NOPE overlay reaches full opacity.
-const OVERLAY_OPACITY_THRESHOLD = 120;
+// Drag distance (px) at which the YES/NOPE stamp reaches full opacity/scale.
+const STAMP_THRESHOLD = 120;
 
 export default function Feed() {
   const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [exhausted, setExhausted] = useState(false);
-  const [dragX, setDragX] = useState(0);
+  const dragX = useRef(new Animated.Value(0)).current;
   const tabBarHeight = useBottomTabBarHeight();
 
   const load = useCallback(async () => {
@@ -103,6 +104,15 @@ export default function Feed() {
     }
   }
 
+  function springStampBack() {
+    Animated.spring(dragX, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 90,
+      friction: 8,
+    }).start();
+  }
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -125,8 +135,26 @@ export default function Feed() {
     );
   }
 
-  const yesOpacity = Math.min(Math.max(dragX, 0) / OVERLAY_OPACITY_THRESHOLD, 1);
-  const nopeOpacity = Math.min(Math.max(-dragX, 0) / OVERLAY_OPACITY_THRESHOLD, 1);
+  const yesOpacity = dragX.interpolate({
+    inputRange: [0, STAMP_THRESHOLD],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+  const yesScale = dragX.interpolate({
+    inputRange: [0, STAMP_THRESHOLD],
+    outputRange: [0.4, 1],
+    extrapolate: 'clamp',
+  });
+  const nopeOpacity = dragX.interpolate({
+    inputRange: [-STAMP_THRESHOLD, 0],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+  const nopeScale = dragX.interpolate({
+    inputRange: [-STAMP_THRESHOLD, 0],
+    outputRange: [1, 0.4],
+    extrapolate: 'clamp',
+  });
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -135,36 +163,55 @@ export default function Feed() {
           cards={items}
           backgroundColor="transparent"
           stackSize={3}
-          cardVerticalMargin={20}
+          cardVerticalMargin={80}
           marginBottom={tabBarHeight}
           renderCard={(card: FeedItem) =>
             card ? <SwipeCard item={card} donorName={card.donor_name} /> : null
           }
-          onSwiping={(x: number) => setDragX(x)}
-          onSwipedAborted={() => setDragX(0)}
+          onSwiping={(x: number) => dragX.setValue(x)}
+          onSwipedAborted={springStampBack}
           onSwipedRight={(i: number) => {
-            setDragX(0);
+            springStampBack();
             recordSwipe(items[i], 'right');
           }}
           onSwipedLeft={(i: number) => {
-            setDragX(0);
+            springStampBack();
             recordSwipe(items[i], 'left');
           }}
           onSwipedAll={() => setExhausted(true)}
           disableTopSwipe
           disableBottomSwipe
+          verticalSwipe={false}
         />
       </View>
-      <View
+      <Animated.View
         pointerEvents="none"
-        style={[styles.overlayCenter, { bottom: tabBarHeight }]}
+        style={[styles.stampLayer, { bottom: tabBarHeight, opacity: yesOpacity }]}
       >
-        {dragX > 0 ? (
-          <Text style={[styles.stampYes, { opacity: yesOpacity }]}>YES</Text>
-        ) : dragX < 0 ? (
-          <Text style={[styles.stampNope, { opacity: nopeOpacity }]}>NOPE</Text>
-        ) : null}
-      </View>
+        <Animated.View
+          style={[
+            styles.stampBox,
+            styles.stampYesBox,
+            { transform: [{ scale: yesScale }, { rotate: '-18deg' }] },
+          ]}
+        >
+          <Text style={[styles.stampText, styles.stampYesText]}>YES</Text>
+        </Animated.View>
+      </Animated.View>
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.stampLayer, { bottom: tabBarHeight, opacity: nopeOpacity }]}
+      >
+        <Animated.View
+          style={[
+            styles.stampBox,
+            styles.stampNopeBox,
+            { transform: [{ scale: nopeScale }, { rotate: '18deg' }] },
+          ]}
+        >
+          <Text style={[styles.stampText, styles.stampNopeText]}>NOPE</Text>
+        </Animated.View>
+      </Animated.View>
     </SafeAreaView>
   );
 }
@@ -183,26 +230,32 @@ const styles = StyleSheet.create({
   },
   refreshText: { color: '#fff', fontWeight: '600' },
   deckWrap: { flex: 1 },
-  // Borderless overlay labels, anchored to screen center (between
-  // top of SafeAreaView and the tab bar) so they don't ride with the card.
-  overlayCenter: {
+  // Full-screen overlay that centers its child stamp. elevation/zIndex keep
+  // it above the card deck on both iOS (zIndex) and Android (elevation).
+  stampLayer: {
     position: 'absolute',
     left: 0,
     right: 0,
     top: 0,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 999,
+    elevation: 20,
   },
-  stampYes: {
-    color: '#0a8',
-    fontSize: 36,
+  stampBox: {
+    paddingVertical: 10,
+    paddingHorizontal: 28,
+    borderWidth: 5,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+  },
+  stampYesBox: { borderColor: '#0a8' },
+  stampNopeBox: { borderColor: '#c0392b' },
+  stampText: {
+    fontSize: 44,
     fontWeight: '900',
-    letterSpacing: 2,
+    letterSpacing: 3,
   },
-  stampNope: {
-    color: '#c0392b',
-    fontSize: 36,
-    fontWeight: '900',
-    letterSpacing: 2,
-  },
+  stampYesText: { color: '#0a8' },
+  stampNopeText: { color: '#c0392b' },
 });
