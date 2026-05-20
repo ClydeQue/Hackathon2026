@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { signedPhotoUrl, supabase } from '@/lib/supabase';
-import type { ClothingItem, ItemStatus } from '@/types';
+import type { ClothingItem } from '@/types';
 
 type Draft = {
   listing_title: string;
@@ -228,38 +228,6 @@ export default function DonateListing() {
             setBusy('idle');
           },
         },
-      ],
-    );
-  }
-
-  // Pull the item out of donate entirely (back to keep or archive). Migration
-  // 0011 closes any in-flight donation requests via trigger so we don't need
-  // to clean them up here.
-  async function moveOutOfDonate(next: ItemStatus) {
-    if (!item) return;
-    const { error } = await supabase
-      .from('clothing_items')
-      .update({ status: next, listed_at: null })
-      .eq('id', item.id);
-    if (error) {
-      Alert.alert('Update failed', error.message);
-      return;
-    }
-    if (router.canGoBack()) router.back();
-    else router.replace('/(tabs)');
-  }
-
-  function promptMoveOutOfDonate() {
-    if (!item) return;
-    Alert.alert(
-      'Stop donating?',
-      isListed
-        ? 'The listing will be removed from Discover and any open requests will be declined.'
-        : 'Move this item back to your closet.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Move to Keep', onPress: () => moveOutOfDonate('keep') },
-        { text: 'Move to Archive', onPress: () => moveOutOfDonate('archive') },
       ],
     );
   }
@@ -567,14 +535,6 @@ export default function DonateListing() {
               </Pressable>
             ) : null}
 
-            <Pressable
-              style={[styles.btn, styles.btnGhost]}
-              onPress={promptMoveOutOfDonate}
-              disabled={busy !== 'idle'}
-            >
-              <Ionicons name="archive-outline" size={16} color="#111" />
-              <Text style={styles.btnGhostText}>Stop donating</Text>
-            </Pressable>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

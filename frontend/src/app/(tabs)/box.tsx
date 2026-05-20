@@ -384,14 +384,13 @@ function OutgoingList({
             </View>
           </View>
           {bundle.items.map((item) => {
-            const title =
-              item.listing_title?.trim() ||
-              item.brand ||
-              item.category ||
-              'Item';
-            const subtitleParts = [item.category, item.color, item.material].filter(
-              Boolean,
-            ) as string[];
+            // Brand on its own line, with category · color as a subtitle
+            // underneath. The duplicate brand label under the photo is
+            // gone (ItemTile is in imageOnly mode).
+            const title = item.listing_title?.trim() || item.brand || null;
+            const subtitle = [item.category, item.color]
+              .filter((x): x is string => !!x)
+              .join(' · ');
             const pills = [
               pretty(item.condition),
               item.size,
@@ -404,15 +403,21 @@ function OutgoingList({
                   <StatusPill status={item.swipe_status} />
                 </View>
                 <View style={styles.outgoingTile}>
-                  <ItemTile item={item} onPress={() => onOpenItem(item.id)} />
+                  <ItemTile
+                    item={item}
+                    onPress={() => onOpenItem(item.id)}
+                    imageOnly
+                  />
                 </View>
                 <View style={styles.outgoingMeta}>
-                  <Text style={styles.itemTitle} numberOfLines={1}>
-                    {title}
-                  </Text>
-                  {subtitleParts.length > 0 ? (
+                  {title ? (
+                    <Text style={styles.itemTitle} numberOfLines={1}>
+                      {title}
+                    </Text>
+                  ) : null}
+                  {subtitle ? (
                     <Text style={styles.itemSubtitle} numberOfLines={1}>
-                      {subtitleParts.join(' · ')}
+                      {subtitle}
                     </Text>
                   ) : null}
                   {pills.length > 0 ? (

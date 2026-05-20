@@ -13,9 +13,20 @@ type Props = {
   // Optional translucent badge that overlays the bottom of the image, e.g.
   // "Archived" inside a collection's archive shelf.
   badge?: string | null;
+  // Hide the brand / category / color labels under the image — useful when
+  // the surrounding card already conveys the item's identity (Box outgoing
+  // rows show the photo + status pill, the labels were redundant).
+  imageOnly?: boolean;
 };
 
-export function ItemTile({ item, onPress, onLongPress, onRemove, badge }: Props) {
+export function ItemTile({
+  item,
+  onPress,
+  onLongPress,
+  onRemove,
+  badge,
+  imageOnly,
+}: Props) {
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,12 +86,16 @@ export function ItemTile({ item, onPress, onLongPress, onRemove, badge }: Props)
           </View>
         ) : null}
       </View>
-      <Text style={styles.title} numberOfLines={1}>
-        {item.brand ?? item.category}
-      </Text>
-      <Text style={styles.meta} numberOfLines={1}>
-        {[item.color, item.category].filter(Boolean).join(' · ')}
-      </Text>
+      {imageOnly ? null : (
+        <>
+          <Text style={styles.title} numberOfLines={1}>
+            {item.brand ?? item.category}
+          </Text>
+          <Text style={styles.meta} numberOfLines={1}>
+            {[item.color, item.category].filter(Boolean).join(' · ')}
+          </Text>
+        </>
+      )}
     </Pressable>
   );
 }

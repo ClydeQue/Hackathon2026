@@ -46,120 +46,6 @@ function StatCard({
   );
 }
 
-// Horizontal stacked bar: how much of your closet is donate-flow (drafts +
-// listed) vs already-donated. Pure View-based so it works in Expo Go and
-// doesn't pull in react-native-svg.
-function StatusBreakdown({
-  drafts,
-  listed,
-  completed,
-}: {
-  drafts: number;
-  listed: number;
-  completed: number;
-}) {
-  const total = Math.max(1, drafts + listed + completed);
-  const pct = (n: number) => (n / total) * 100;
-  return (
-    <View style={styles.breakdownCard}>
-      <Text style={styles.breakdownTitle}>Donation pipeline</Text>
-      <View style={styles.breakdownBar}>
-        {drafts > 0 ? (
-          <View style={[styles.breakdownSeg, styles.segDraft, { flex: pct(drafts) }]} />
-        ) : null}
-        {listed > 0 ? (
-          <View style={[styles.breakdownSeg, styles.segListed, { flex: pct(listed) }]} />
-        ) : null}
-        {completed > 0 ? (
-          <View
-            style={[styles.breakdownSeg, styles.segDone, { flex: pct(completed) }]}
-          />
-        ) : null}
-        {drafts + listed + completed === 0 ? (
-          <View
-            style={[styles.breakdownSeg, styles.segEmpty, { flex: 1 }]}
-          />
-        ) : null}
-      </View>
-      <View style={styles.legendRow}>
-        <Legend color="#f4c33d" label="Drafts" count={drafts} />
-        <Legend color="#3d8df4" label="Listed" count={listed} />
-        <Legend color="#0a7f33" label="Donated" count={completed} />
-      </View>
-    </View>
-  );
-}
-
-function Legend({ color, label, count }: { color: string; label: string; count: number }) {
-  return (
-    <View style={styles.legend}>
-      <View style={[styles.legendDot, { backgroundColor: color }]} />
-      <Text style={styles.legendText}>
-        {label} · <Text style={styles.legendCount}>{count}</Text>
-      </Text>
-    </View>
-  );
-}
-
-// Six-month vertical bar chart of completed donations. Bars normalize to the
-// highest month so the current month always has a visible footprint.
-function MonthlyChart({ months }: { months: { label: string; count: number }[] }) {
-  const maxCount = Math.max(1, ...months.map((m) => m.count));
-  const total = months.reduce((s, m) => s + m.count, 0);
-  return (
-    <View style={styles.chartCard}>
-      <View style={styles.chartHeader}>
-        <View>
-          <Text style={styles.chartTitle}>Last 6 months</Text>
-          <Text style={styles.chartSub}>
-            {total} donation{total === 1 ? '' : 's'} completed
-          </Text>
-        </View>
-        <View style={styles.chartHeaderIcon}>
-          <Ionicons name="bar-chart-outline" size={18} color="#3f6b1c" />
-        </View>
-      </View>
-      <View style={styles.chartBars}>
-        {months.map((m, i) => {
-          const ratio = m.count / maxCount;
-          const isCurrent = i === months.length - 1;
-          return (
-            <View key={m.label} style={styles.chartCol}>
-              <View style={styles.chartBarTrack}>
-                <View
-                  style={[
-                    styles.chartBarFill,
-                    {
-                      height: `${Math.max(4, ratio * 100)}%`,
-                      backgroundColor: isCurrent ? '#0a7f33' : '#cfe8d3',
-                    },
-                  ]}
-                />
-              </View>
-              <Text
-                style={[
-                  styles.chartBarLabel,
-                  isCurrent && { color: '#0a7f33', fontWeight: '700' },
-                ]}
-              >
-                {m.label}
-              </Text>
-              <Text
-                style={[
-                  styles.chartBarCount,
-                  isCurrent && { color: '#0a7f33', fontWeight: '700' },
-                ]}
-              >
-                {m.count}
-              </Text>
-            </View>
-          );
-        })}
-      </View>
-    </View>
-  );
-}
-
 function Thumb({ path }: { path: string }) {
   const [url, setUrl] = useState<string | null>(null);
   useFocusEffect(
@@ -189,35 +75,12 @@ function Thumb({ path }: { path: string }) {
   );
 }
 
-// Rough kg per garment, used to estimate textile waste avoided. WRAP's
-// "Valuing our clothes" report puts the UK average around 0.5 kg per item;
-// good enough for a soft motivational stat.
-const AVG_GARMENT_KG = 0.5;
-
-// Build a [oldest..current] window of the last 6 months, each labelled with a
-// 3-letter month name. Returned ahead of any data so the chart always renders
-// in chronological order, even when a month has zero donations.
-function buildMonthBuckets(): { label: string; key: string; count: number }[] {
-  const out: { label: string; key: string; count: number }[] = [];
-  const now = new Date();
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    const label = d.toLocaleDateString(undefined, { month: 'short' });
-    out.push({ label, key, count: 0 });
-  }
-  return out;
-}
-
 export default function Donations() {
   const router = useRouter();
   const [drafts, setDrafts] = useState<ClothingItem[]>([]);
   const [listed, setListed] = useState<ClothingItem[]>([]);
   const [completedCount, setCompletedCount] = useState(0);
   const [interestedCount, setInterestedCount] = useState(0);
-  const [months, setMonths] = useState<{ label: string; count: number }[]>(
-    buildMonthBuckets(),
-  );
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -226,14 +89,8 @@ export default function Donations() {
     if (!u.user) return;
     const userId = u.user.id;
 
-    // Six-month window for the bar chart — start of the oldest bucket month.
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
-    sixMonthsAgo.setDate(1);
-    sixMonthsAgo.setHours(0, 0, 0, 0);
-
-    // Fire the four reads in parallel — they're independent.
-    const [itemsRes, completedRes, interestedRes, timelineRes] = await Promise.all([
+    // Fire the three reads in parallel — they're independent.
+    const [itemsRes, completedRes, interestedRes] = await Promise.all([
       supabase
         .from('clothing_items')
         .select('*')
@@ -257,13 +114,6 @@ export default function Donations() {
         .eq('direction', 'right')
         .eq('status', 'pending')
         .eq('item.owner_id', userId),
-      // Timeline of completed donations for the 6-month bar chart.
-      supabase
-        .from('clothing_items')
-        .select('claimed_at')
-        .eq('owner_id', userId)
-        .not('claimed_at', 'is', null)
-        .gte('claimed_at', sixMonthsAgo.toISOString()),
     ]);
 
     if (itemsRes.error) {
@@ -277,18 +127,6 @@ export default function Donations() {
     setListed(rows.filter((r) => !!r.listed_at));
     setCompletedCount(completedRes.count ?? 0);
     setInterestedCount(interestedRes.count ?? 0);
-
-    // Bucket completion timestamps into the rolling 6-month window.
-    const buckets = buildMonthBuckets();
-    const byKey = new Map(buckets.map((b) => [b.key, b]));
-    for (const row of (timelineRes.data ?? []) as { claimed_at: string | null }[]) {
-      if (!row.claimed_at) continue;
-      const d = new Date(row.claimed_at);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const bucket = byKey.get(key);
-      if (bucket) bucket.count += 1;
-    }
-    setMonths(buckets.map((b) => ({ label: b.label, count: b.count })));
 
     setLoading(false);
     setRefreshing(false);
@@ -320,11 +158,6 @@ export default function Donations() {
   }
 
   const totalDonations = drafts.length + listed.length;
-  const wasteKg = completedCount * AVG_GARMENT_KG;
-  const wasteLabel =
-    wasteKg >= 1
-      ? `${wasteKg.toFixed(wasteKg % 1 === 0 ? 0 : 1)} kg`
-      : `${Math.round(wasteKg * 1000)} g`;
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -351,20 +184,11 @@ export default function Donations() {
           tint="#fbe7f0"
         />
         <StatCard
-          value={wasteLabel}
-          label="Waste avoided"
-          accent="#3f6b1c"
-          tint="#eef5e2"
+          value={listed.length}
+          label="Listed"
+          accent="#0a4a8a"
+          tint="#e3eefb"
         />
-      </View>
-
-      <View style={styles.analyticsBlock}>
-        <StatusBreakdown
-          drafts={drafts.length}
-          listed={listed.length}
-          completed={completedCount}
-        />
-        <MonthlyChart months={months} />
       </View>
 
       {loading ? (
