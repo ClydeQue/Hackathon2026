@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { ItemTile } from '@/components/ItemTile';
 import { recommendOutfits, type Outfit } from '@/lib/recommender';
 import { supabase } from '@/lib/supabase';
@@ -76,7 +77,8 @@ export default function OutfitScreen() {
       )}
 
       <Pressable style={styles.shuffle} onPress={generate}>
-        <Text style={styles.shuffleText}>🔀 Shuffle</Text>
+        <Ionicons name="shuffle" size={18} color="#fff" />
+        <Text style={styles.shuffleText}>Shuffle</Text>
       </Pressable>
     </SafeAreaView>
   );

@@ -8,10 +8,16 @@ import {
   Text,
   View,
 } from 'react-native';
+import * as Crypto from 'expo-crypto';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { TagEditor, type TagEditorValue } from '@/components/TagEditor';
+import { Ionicons } from '@expo/vector-icons';
+import {
+  TagEditor,
+  type TagEditorErrors,
+  type TagEditorValue,
+} from '@/components/TagEditor';
 import { STORAGE_BUCKET, supabase } from '@/lib/supabase';
 
 type Stage = 'pick' | 'confirm' | 'saving';
@@ -23,16 +29,33 @@ const DEFAULT_TAGS: TagEditorValue = {
   brand: '',
 };
 
+function validate(tags: TagEditorValue): TagEditorErrors {
+  const errors: TagEditorErrors = {};
+  if (!tags.category) errors.category = 'Pick a category.';
+  if (!tags.color.trim()) errors.color = 'Color is required.';
+  if (!tags.material.trim()) errors.material = 'Material is required.';
+  return errors;
+}
+
 export default function AddItem() {
   const router = useRouter();
   const [stage, setStage] = useState<Stage>('pick');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [tags, setTags] = useState<TagEditorValue>(DEFAULT_TAGS);
+  const [errors, setErrors] = useState<TagEditorErrors>({});
 
   function reset() {
     setStage('pick');
     setPhotoUri(null);
     setTags(DEFAULT_TAGS);
+    setErrors({});
+  }
+
+  function updateTags(next: TagEditorValue) {
+    setTags(next);
+    if (Object.keys(errors).length > 0) {
+      setErrors(validate(next));
+    }
   }
 
   async function pickPhoto(source: 'camera' | 'library') {
@@ -61,20 +84,36 @@ export default function AddItem() {
   }
 
   async function save() {
-    if (!photoUri) return;
+    if (!photoUri) {
+      Alert.alert('Photo required', 'Please add a photo before saving.');
+      return;
+    }
+    const nextErrors = validate(tags);
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors);
+      return;
+    }
+    setErrors({});
     setStage('saving');
     try {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) throw new Error('Not signed in');
 
-      const itemId = crypto.randomUUID();
+      const itemId = Crypto.randomUUID();
       const path = `${u.user.id}/${itemId}.jpg`;
 
       const blob = await (await fetch(photoUri)).blob();
       const { error: upErr } = await supabase.storage
         .from(STORAGE_BUCKET)
         .upload(path, blob, { contentType: 'image/jpeg', upsert: false });
-      if (upErr) throw upErr;
+      if (upErr) {
+        if (/bucket.*not found/i.test(upErr.message)) {
+          throw new Error(
+            `Storage bucket "${STORAGE_BUCKET}" is missing. Run supabase/migrations/0002_storage.sql in Supabase Studio.`,
+          );
+        }
+        throw upErr;
+      }
 
       const { error: insErr } = await supabase.from('clothing_items').insert({
         id: itemId,
@@ -111,10 +150,12 @@ export default function AddItem() {
         {stage === 'pick' ? (
           <View style={styles.actionRow}>
             <Pressable style={styles.action} onPress={() => pickPhoto('camera')}>
-              <Text style={styles.actionText}>📷 Camera</Text>
+              <Ionicons name="camera-outline" size={20} color="#fff" />
+              <Text style={styles.actionText}>Camera</Text>
             </Pressable>
             <Pressable style={styles.action} onPress={() => pickPhoto('library')}>
-              <Text style={styles.actionText}>🖼 Library</Text>
+              <Ionicons name="images-outline" size={20} color="#fff" />
+              <Text style={styles.actionText}>Library</Text>
             </Pressable>
           </View>
         ) : null}
@@ -122,8 +163,11 @@ export default function AddItem() {
         {stage === 'confirm' || stage === 'saving' ? (
           <>
             <Text style={styles.title}>Tag this item</Text>
-            <Text style={styles.hint}>Pick a category and add details, then save.</Text>
-            <TagEditor value={tags} onChange={setTags} />
+            <Text style={styles.hint}>
+              Pick a category and add details, then save. Fields marked{' '}
+              <Text style={styles.requiredHint}>*</Text> are required.
+            </Text>
+            <TagEditor value={tags} onChange={updateTags} errors={errors} />
             <Pressable
               style={[styles.save, stage === 'saving' && { opacity: 0.6 }]}
               disabled={stage === 'saving'}
@@ -156,10 +200,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: '#111',
     alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
   },
   actionText: { color: '#fff', fontWeight: '600' },
   title: { fontSize: 20, fontWeight: '700', marginTop: 16 },
   hint: { color: '#666' },
+  requiredHint: { color: '#c00', fontWeight: '700' },
   save: {
     marginTop: 20,
     backgroundColor: '#111',

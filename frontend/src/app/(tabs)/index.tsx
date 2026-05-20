@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { ItemTile } from '@/components/ItemTile';
 import { supabase } from '@/lib/supabase';
 import type { ClothingItem, ItemStatus } from '@/types';
@@ -64,7 +65,8 @@ export default function Catalogue() {
         style={styles.outfitButton}
         onPress={() => router.push('/outfit')}
       >
-        <Text style={styles.outfitButtonText}>✨ Suggest an outfit</Text>
+        <Ionicons name="sparkles-outline" size={16} color="#111" />
+        <Text style={styles.outfitButtonText}>Suggest an outfit</Text>
       </Pressable>
 
       {loading ? (
@@ -116,6 +118,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: '#f6f1ea',
     alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
   },
   outfitButtonText: { fontWeight: '600' },
   empty: { textAlign: 'center', color: '#777', marginTop: 48, paddingHorizontal: 24 },

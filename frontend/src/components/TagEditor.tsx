@@ -18,15 +18,26 @@ export type TagEditorValue = {
   brand: string;
 };
 
+export type TagEditorErrors = Partial<Record<keyof TagEditorValue, string>>;
+
 type Props = {
   value: TagEditorValue;
   onChange: (next: TagEditorValue) => void;
+  errors?: TagEditorErrors;
 };
 
-export function TagEditor({ value, onChange }: Props) {
+function RequiredLabel({ children }: { children: string }) {
+  return (
+    <Text style={styles.label}>
+      {children} <Text style={styles.required}>*</Text>
+    </Text>
+  );
+}
+
+export function TagEditor({ value, onChange, errors }: Props) {
   return (
     <View style={styles.wrap}>
-      <Text style={styles.label}>Category</Text>
+      <RequiredLabel>Category</RequiredLabel>
       <View style={styles.chips}>
         {CATEGORIES.map((c) => {
           const selected = value.category === c;
@@ -41,24 +52,27 @@ export function TagEditor({ value, onChange }: Props) {
           );
         })}
       </View>
+      {errors?.category ? <Text style={styles.error}>{errors.category}</Text> : null}
 
-      <Text style={styles.label}>Color</Text>
+      <RequiredLabel>Color</RequiredLabel>
       <TextInput
-        style={styles.input}
+        style={[styles.input, errors?.color && styles.inputError]}
         value={value.color}
         onChangeText={(t) => onChange({ ...value, color: t })}
         placeholder="e.g. navy, cream, rust"
         autoCapitalize="none"
       />
+      {errors?.color ? <Text style={styles.error}>{errors.color}</Text> : null}
 
-      <Text style={styles.label}>Material</Text>
+      <RequiredLabel>Material</RequiredLabel>
       <TextInput
-        style={styles.input}
+        style={[styles.input, errors?.material && styles.inputError]}
         value={value.material}
         onChangeText={(t) => onChange({ ...value, material: t })}
         placeholder="e.g. cotton, wool"
         autoCapitalize="none"
       />
+      {errors?.material ? <Text style={styles.error}>{errors.material}</Text> : null}
 
       <Text style={styles.label}>Brand</Text>
       <TextInput
@@ -92,4 +106,7 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 16,
   },
+  inputError: { borderColor: '#c00' },
+  required: { color: '#c00' },
+  error: { color: '#c00', fontSize: 13, marginTop: -4 },
 });

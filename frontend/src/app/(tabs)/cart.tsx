@@ -29,41 +29,59 @@ export default function Cart() {
   const load = useCallback(async () => {
     setLoading(true);
     const { data: u } = await supabase.auth.getUser();
-    if (!u.user) return;
-
-    const { data, error } = await supabase
-      .from('swipes')
-      .select(
-        'item:clothing_items!swipes_item_id_fkey(*, donor:profiles!clothing_items_owner_id_fkey(user_id,display_name,contact_email,contact_phone,contact_handle))',
-      )
-      .eq('swiper_id', u.user.id)
-      .eq('direction', 'right');
-
-    if (error) {
-      Alert.alert('Cart error', error.message);
+    if (!u.user) {
       setLoading(false);
       return;
     }
 
-    const byDonor = new Map<string, DonorBundle>();
-    for (const row of data ?? []) {
-      const item: any = (row as any).item;
-      if (!item || item.status !== 'donate') continue;
-      const donor = item.donor;
-      const key = donor?.user_id ?? 'unknown';
-      if (!byDonor.has(key)) {
-        byDonor.set(key, {
-          donor: donor ?? {
-            user_id: 'unknown',
-            display_name: 'Someone',
-            contact_email: null,
-            contact_phone: null,
-            contact_handle: null,
-          },
-          items: [],
-        });
+    // 1. Right-swipes with their items.
+    const { data: swipeRows, error: swipeErr } = await supabase
+      .from('swipes')
+      .select('item:clothing_items(*)')
+      .eq('swiper_id', u.user.id)
+      .eq('direction', 'right');
+    if (swipeErr) {
+      Alert.alert('Cart error', swipeErr.message);
+      setLoading(false);
+      return;
+    }
+
+    const items = (swipeRows ?? [])
+      .map((r) => (r as any).item as ClothingItem | null)
+      .filter((i): i is ClothingItem => !!i && i.status === 'donate');
+
+    // 2. Donor profiles in one batched query.
+    const ownerIds = Array.from(new Set(items.map((i) => i.owner_id)));
+    const donorById = new Map<string, DonorBundle['donor']>();
+    if (ownerIds.length > 0) {
+      const { data: profileRows, error: profileErr } = await supabase
+        .from('profiles')
+        .select('user_id,display_name,contact_email,contact_phone,contact_handle')
+        .in('user_id', ownerIds);
+      if (profileErr) {
+        Alert.alert('Cart error', profileErr.message);
+        setLoading(false);
+        return;
       }
-      byDonor.get(key)!.items.push(item as ClothingItem);
+      for (const p of profileRows ?? []) {
+        donorById.set(p.user_id, p as DonorBundle['donor']);
+      }
+    }
+
+    // 3. Bundle by donor.
+    const byDonor = new Map<string, DonorBundle>();
+    for (const item of items) {
+      const donor = donorById.get(item.owner_id) ?? {
+        user_id: item.owner_id,
+        display_name: 'Someone',
+        contact_email: null,
+        contact_phone: null,
+        contact_handle: null,
+      };
+      if (!byDonor.has(donor.user_id)) {
+        byDonor.set(donor.user_id, { donor, items: [] });
+      }
+      byDonor.get(donor.user_id)!.items.push(item);
     }
     setBundles(Array.from(byDonor.values()));
     setLoading(false);

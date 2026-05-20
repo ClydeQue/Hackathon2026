@@ -35,7 +35,7 @@ export default function Feed() {
 
     let query = supabase
       .from('clothing_items')
-      .select('*, profiles!clothing_items_owner_id_fkey(display_name)')
+      .select('*')
       .eq('status', 'donate')
       .neq('owner_id', u.user.id)
       .order('donated_at', { ascending: false })
@@ -45,16 +45,30 @@ export default function Feed() {
       query = query.not('id', 'in', `(${excluded.join(',')})`);
     }
 
-    const { data, error } = await query;
+    const { data: itemRows, error } = await query;
     if (error) {
       Alert.alert('Feed error', error.message);
       setLoading(false);
       return;
     }
+    const rows = (itemRows ?? []) as ClothingItem[];
 
-    const mapped: FeedItem[] = (data ?? []).map((row: any) => ({
+    // Donor display_name in one batched profile lookup.
+    const ownerIds = Array.from(new Set(rows.map((r) => r.owner_id)));
+    const nameById = new Map<string, string>();
+    if (ownerIds.length > 0) {
+      const { data: profileRows } = await supabase
+        .from('profiles')
+        .select('user_id,display_name')
+        .in('user_id', ownerIds);
+      for (const p of profileRows ?? []) {
+        nameById.set((p as any).user_id, (p as any).display_name);
+      }
+    }
+
+    const mapped: FeedItem[] = rows.map((row) => ({
       ...row,
-      donor_name: row.profiles?.display_name ?? 'Someone',
+      donor_name: nameById.get(row.owner_id) ?? 'Someone',
     }));
     setItems(mapped);
     setExhausted(mapped.length === 0);
