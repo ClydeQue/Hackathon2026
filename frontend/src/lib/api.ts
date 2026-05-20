@@ -46,36 +46,25 @@ export async function scanPhoto(photo: ScanPhotoInput, signal?: AbortSignal): Pr
     });
 
     if (!res.ok) {
-      // Drain the body so the socket isn't left open, but don't surface the
-      // raw detail — it's a server stack trace 99% of the time.
-      await res.text().catch(() => {});
-      throw new Error(scanMessageForStatus(res.status));
+      const text = await res.text();
+      let detail = text;
+      try {
+        const parsed = JSON.parse(text);
+        detail = parsed.detail ?? parsed.error ?? text;
+      } catch {
+        // not JSON; use raw text
+      }
+      throw new Error(`scan failed (${res.status}): ${detail}`);
     }
     return (await res.json()) as ScanResult;
   } catch (err: unknown) {
     if (err instanceof Error && err.name === 'AbortError') {
-      throw new Error("Scan timed out. Try again.");
-    }
-    if (err instanceof TypeError) {
-      // fetch throws TypeError on network failures (DNS, offline, CORS).
-      throw new Error("Can't reach the scanner.");
+      throw new Error('Auto-tag timed out. Check your connection or try again.');
     }
     throw err;
   } finally {
     clearTimeout(timeoutId);
   }
-}
-
-// Map HTTP status to a short, friendly message. One line, no codes, no stack.
-function scanMessageForStatus(status: number): string {
-  if (status === 401 || status === 403) return 'Please sign in again.';
-  if (status === 413) return 'That photo is too big.';
-  if (status === 415) return 'That photo format is not supported.';
-  if (status === 429) return 'Scanner is busy — try again.';
-  if (status === 408 || status === 504) return 'Scan timed out. Try again.';
-  if (status === 503) return 'Scanner is offline — try again soon.';
-  if (status >= 500) return 'Scanner had a hiccup.';
-  return 'Auto-tag unavailable.';
 }
 
 function fileNameFromUri(uri: string): string {

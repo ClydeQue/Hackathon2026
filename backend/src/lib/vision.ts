@@ -192,6 +192,11 @@ async function generateWithRetry(imageBase64: string, mediaType: string) {
           systemInstruction: SYSTEM_PROMPT,
           responseMimeType: "application/json",
           responseSchema: RESPONSE_SCHEMA,
+          // gemini-2.5-flash has dynamic thinking on by default. With a tight
+          // structured-output schema it sometimes leaks the thought trace into
+          // the response (e.g. "Here is the classification…") instead of pure
+          // JSON. Forcing budget=0 keeps output schema-compliant.
+          thinkingConfig: { thinkingBudget: 0 },
           maxOutputTokens: 256,
         },
       });
@@ -206,10 +211,56 @@ async function generateWithRetry(imageBase64: string, mediaType: string) {
   throw lastErr;
 }
 
+// Pull the first balanced {...} block out of a model response. Gemini's
+// structured-output mode is normally pure JSON, but it occasionally prepends
+// a conversational preamble ("Here is the classification: { ... }"); this
+// extractor recovers in that case instead of throwing on the leading text.
+function extractJsonObject(text: string): string | null {
+  const start = text.indexOf("{");
+  if (start < 0) return null;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (ch === "\\") {
+      escape = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
 export async function classifyGarment(imageBase64: string, mediaType: string): Promise<VisionTags> {
   const res = await generateWithRetry(imageBase64, mediaType);
 
-  const parsed = (JSON.parse(res.text ?? "{}") ?? {}) as Record<string, unknown>;
+  const raw = res.text ?? "{}";
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = (JSON.parse(raw) ?? {}) as Record<string, unknown>;
+  } catch {
+    const block = extractJsonObject(raw);
+    if (!block) {
+      throw new Error(
+        `Model returned non-JSON output: ${raw.slice(0, 120)}${raw.length > 120 ? "…" : ""}`,
+      );
+    }
+    parsed = (JSON.parse(block) ?? {}) as Record<string, unknown>;
+  }
 
   return {
     category: normalizeCategory(parsed.category),

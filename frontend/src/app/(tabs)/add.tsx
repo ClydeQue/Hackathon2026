@@ -141,7 +141,7 @@ export default function AddItem() {
     } catch (err: any) {
       console.warn('[add] scan failed', err);
       if (gen === scanGenRef.current) {
-        setScanError(err?.message ?? 'Auto-tag unavailable.');
+        setScanError(err?.message ?? 'Auto-tag unavailable. Fill the fields manually.');
       }
     } finally {
       if (gen === scanGenRef.current) setScanning(false);
