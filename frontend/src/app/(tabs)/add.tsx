@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   Alert,
   Image,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -63,7 +64,15 @@ export default function AddItem() {
         ? await ImagePicker.requestCameraPermissionsAsync()
         : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Permission needed', 'Please grant permission and try again.');
+      const kind = source === 'camera' ? 'Camera' : 'Photo';
+      Alert.alert(
+        `${kind} access denied`,
+        `Enable ${kind.toLowerCase()} access for this app in Settings to continue.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+        ],
+      );
       return;
     }
     const result =

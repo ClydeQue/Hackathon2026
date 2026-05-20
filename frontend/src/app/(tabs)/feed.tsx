@@ -21,6 +21,10 @@ type FeedItem = ClothingItem & { donor_name: string };
 // Drag distance (px) at which the YES/NOPE stamp reaches full opacity/scale.
 const STAMP_THRESHOLD = 120;
 
+// Card height in px. react-native-deck-swiper sizes from Dimensions.get('window')
+// and ignores the parent container, so we override via the Swiper's cardStyle.
+const CARD_HEIGHT = 750;
+
 export default function Feed() {
   const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -121,13 +125,28 @@ export default function Feed() {
     );
   }
 
+  async function refreshDeck() {
+    // Dev-only convenience: clear our own swipe history so already-seen
+    // donations reappear. Other users' decks are untouched.
+    const { data: u } = await supabase.auth.getUser();
+    if (u.user) {
+      const { error } = await supabase
+        .from('swipes')
+        .delete()
+        .eq('swiper_id', u.user.id);
+      if (error) console.warn('[feed] clear swipes failed', error.message);
+    }
+    setExhausted(false);
+    load();
+  }
+
   if (exhausted) {
     return (
       <SafeAreaView style={styles.container} edges={['bottom']}>
         <View style={styles.center}>
           <Text style={styles.emptyTitle}>You’ve seen everything.</Text>
           <Text style={styles.emptyBody}>Check back later for new donations.</Text>
-          <Pressable style={styles.refresh} onPress={load}>
+          <Pressable style={styles.refresh} onPress={refreshDeck}>
             <Text style={styles.refreshText}>Refresh</Text>
           </Pressable>
         </View>
@@ -158,60 +177,62 @@ export default function Feed() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <View style={styles.deckWrap}>
-        <Swiper
-          cards={items}
-          backgroundColor="transparent"
-          stackSize={3}
-          cardVerticalMargin={80}
-          marginBottom={tabBarHeight}
-          renderCard={(card: FeedItem) =>
-            card ? <SwipeCard item={card} donorName={card.donor_name} /> : null
-          }
-          onSwiping={(x: number) => dragX.setValue(x)}
-          onSwipedAborted={springStampBack}
-          onSwipedRight={(i: number) => {
-            springStampBack();
-            recordSwipe(items[i], 'right');
-          }}
-          onSwipedLeft={(i: number) => {
-            springStampBack();
-            recordSwipe(items[i], 'left');
-          }}
-          onSwipedAll={() => setExhausted(true)}
-          disableTopSwipe
-          disableBottomSwipe
-          verticalSwipe={false}
-        />
+      <View style={[styles.deckWrap, { paddingBottom: tabBarHeight }]}>
+        <View style={styles.deckSlot}>
+          <Swiper
+            cards={items}
+            backgroundColor="transparent"
+            stackSize={3}
+            cardVerticalMargin={0}
+            cardStyle={{ top: 0, height: CARD_HEIGHT }}
+            renderCard={(card: FeedItem) =>
+              card ? <SwipeCard item={card} donorName={card.donor_name} /> : null
+            }
+            onSwiping={(x: number) => dragX.setValue(x)}
+            onSwipedAborted={springStampBack}
+            onSwipedRight={(i: number) => {
+              springStampBack();
+              recordSwipe(items[i], 'right');
+            }}
+            onSwipedLeft={(i: number) => {
+              springStampBack();
+              recordSwipe(items[i], 'left');
+            }}
+            onSwipedAll={() => setExhausted(true)}
+            disableTopSwipe
+            disableBottomSwipe
+            verticalSwipe={false}
+          />
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.stampLayer, { opacity: yesOpacity }]}
+          >
+            <Animated.View
+              style={[
+                styles.stampBox,
+                styles.stampYesBox,
+                { transform: [{ scale: yesScale }, { rotate: '-18deg' }] },
+              ]}
+            >
+              <Text style={[styles.stampText, styles.stampYesText]}>YES</Text>
+            </Animated.View>
+          </Animated.View>
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.stampLayer, { opacity: nopeOpacity }]}
+          >
+            <Animated.View
+              style={[
+                styles.stampBox,
+                styles.stampNopeBox,
+                { transform: [{ scale: nopeScale }, { rotate: '18deg' }] },
+              ]}
+            >
+              <Text style={[styles.stampText, styles.stampNopeText]}>NOPE</Text>
+            </Animated.View>
+          </Animated.View>
+        </View>
       </View>
-      <Animated.View
-        pointerEvents="none"
-        style={[styles.stampLayer, { bottom: tabBarHeight, opacity: yesOpacity }]}
-      >
-        <Animated.View
-          style={[
-            styles.stampBox,
-            styles.stampYesBox,
-            { transform: [{ scale: yesScale }, { rotate: '-18deg' }] },
-          ]}
-        >
-          <Text style={[styles.stampText, styles.stampYesText]}>YES</Text>
-        </Animated.View>
-      </Animated.View>
-      <Animated.View
-        pointerEvents="none"
-        style={[styles.stampLayer, { bottom: tabBarHeight, opacity: nopeOpacity }]}
-      >
-        <Animated.View
-          style={[
-            styles.stampBox,
-            styles.stampNopeBox,
-            { transform: [{ scale: nopeScale }, { rotate: '18deg' }] },
-          ]}
-        >
-          <Text style={[styles.stampText, styles.stampNopeText]}>NOPE</Text>
-        </Animated.View>
-      </Animated.View>
     </SafeAreaView>
   );
 }
@@ -230,13 +251,18 @@ const styles = StyleSheet.create({
   },
   refreshText: { color: '#fff', fontWeight: '600' },
   deckWrap: { flex: 1 },
-  // Full-screen overlay that centers its child stamp. elevation/zIndex keep
-  // it above the card deck on both iOS (zIndex) and Android (elevation).
+  // Card slot is pinned to the top of the deckWrap with a hard ceiling on
+  // height so the card stays short rather than stretching to fill the screen.
+  deckSlot: { flex: 1, maxHeight: CARD_HEIGHT },
+  // Fills the deckSlot so the YES/NOPE stamp centers on the card, not on the
+  // empty space below it. elevation/zIndex keep it above the deck on both
+  // iOS (zIndex) and Android (elevation).
   stampLayer: {
     position: 'absolute',
     left: 0,
     right: 0,
     top: 0,
+    bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 999,

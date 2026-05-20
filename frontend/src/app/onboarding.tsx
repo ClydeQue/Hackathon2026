@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import {
   Alert,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -42,10 +43,24 @@ export default function Onboarding() {
     router.replace('/(tabs)');
   }
 
+  function explainDenial(kind: 'camera' | 'photos') {
+    // If iOS won't re-prompt (canAskAgain is false), the only path forward
+    // is the Settings app. Surface that explicitly instead of looping the
+    // user back through a useless "try again" alert.
+    Alert.alert(
+      `${kind === 'camera' ? 'Camera' : 'Photo'} access denied`,
+      `Enable ${kind} access for this app in Settings to continue.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Open Settings', onPress: () => Linking.openSettings() },
+      ],
+    );
+  }
+
   async function pickBatch() {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Permission needed', 'Please grant photo access.');
+      explainDenial('photos');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -64,7 +79,7 @@ export default function Onboarding() {
         ? await ImagePicker.requestCameraPermissionsAsync()
         : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Permission needed', 'Please grant permission and try again.');
+      explainDenial(source === 'camera' ? 'camera' : 'photos');
       return;
     }
     const result =

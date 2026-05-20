@@ -8,10 +8,14 @@ import type { ClothingItem } from '@/types';
 type Props = {
   item: ClothingItem;
   onPress?: () => void;
+  onLongPress?: () => void;
   onRemove?: () => void;
+  // Optional translucent badge that overlays the bottom of the image, e.g.
+  // "Archived" inside a collection's archive shelf.
+  badge?: string | null;
 };
 
-export function ItemTile({ item, onPress, onRemove }: Props) {
+export function ItemTile({ item, onPress, onLongPress, onRemove, badge }: Props) {
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,7 +38,7 @@ export function ItemTile({ item, onPress, onRemove }: Props) {
   }, [item.photo_path]);
 
   return (
-    <Pressable style={styles.tile} onPress={onPress}>
+    <Pressable style={styles.tile} onPress={onPress} onLongPress={onLongPress}>
       <View style={styles.imageBox}>
         {url ? (
           <Image
@@ -64,6 +68,11 @@ export function ItemTile({ item, onPress, onRemove }: Props) {
           >
             <Ionicons name="close" size={16} color="#fff" />
           </Pressable>
+        ) : null}
+        {badge ? (
+          <View style={styles.cornerBadge}>
+            <Text style={styles.cornerBadgeText}>{badge}</Text>
+          </View>
         ) : null}
       </View>
       <Text style={styles.title} numberOfLines={1}>
@@ -99,4 +108,20 @@ const styles = StyleSheet.create({
   },
   title: { marginTop: 6, fontWeight: '600', textTransform: 'capitalize' },
   meta: { color: '#777', fontSize: 12, textTransform: 'capitalize' },
+  cornerBadge: {
+    position: 'absolute',
+    left: 6,
+    bottom: 6,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    backgroundColor: 'rgba(17,17,17,0.78)',
+  },
+  cornerBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
 });

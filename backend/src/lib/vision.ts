@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenAI, Type } from "@google/genai";
 
 const ALLOWED_CATEGORIES = [
   "top",
@@ -21,7 +21,7 @@ export type VisionTags = {
 
 const SYSTEM_PROMPT = `You are a clothing-cataloguing assistant for the SlowFashion app.
 
-You receive a single photo of one garment and must return a compact JSON object describing it. Output ONLY raw JSON, no commentary, no markdown fences.
+You receive a single photo of one garment and must return a compact JSON object describing it.
 
 Schema:
 {
@@ -36,21 +36,18 @@ Rules:
 - Never invent a brand. If the brand isn't clearly visible, omit the field entirely.
 - "category" must match the allowed list exactly. Use "other" if nothing fits.`;
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const RESPONSE_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    category: { type: Type.STRING, enum: [...ALLOWED_CATEGORIES] },
+    color: { type: Type.STRING },
+    material: { type: Type.STRING },
+    brand: { type: Type.STRING },
+  },
+  required: ["category", "color"],
+};
 
-function safeParseJSON(text: string): Record<string, unknown> | null {
-  // Models occasionally wrap JSON in fences despite instructions.
-  const cleaned = text
-    .trim()
-    .replace(/^```(?:json)?/i, "")
-    .replace(/```$/, "")
-    .trim();
-  try {
-    return JSON.parse(cleaned);
-  } catch {
-    return null;
-  }
-}
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 function normalizeCategory(value: unknown): Category {
   if (typeof value === "string") {
@@ -67,40 +64,26 @@ function normalizeString(value: unknown): string | undefined {
 }
 
 export async function classifyGarment(imageBase64: string, mediaType: string): Promise<VisionTags> {
-  const message = await client.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 256,
-    system: [
-      {
-        type: "text",
-        text: SYSTEM_PROMPT,
-        cache_control: { type: "ephemeral" },
-      },
-    ],
-    messages: [
+  const res = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: [
       {
         role: "user",
-        content: [
-          {
-            type: "image",
-            source: {
-              type: "base64",
-              media_type: mediaType as "image/jpeg" | "image/png" | "image/webp" | "image/gif",
-              data: imageBase64,
-            },
-          },
-          {
-            type: "text",
-            text: "Classify this garment. Respond with raw JSON only.",
-          },
+        parts: [
+          { inlineData: { mimeType: mediaType, data: imageBase64 } },
+          { text: "Classify this garment." },
         ],
       },
     ],
+    config: {
+      systemInstruction: SYSTEM_PROMPT,
+      responseMimeType: "application/json",
+      responseSchema: RESPONSE_SCHEMA,
+      maxOutputTokens: 256,
+    },
   });
 
-  const textBlock = message.content.find((b) => b.type === "text");
-  const raw = textBlock && "text" in textBlock ? textBlock.text : "";
-  const parsed = safeParseJSON(raw) ?? {};
+  const parsed = (JSON.parse(res.text ?? "{}") ?? {}) as Record<string, unknown>;
 
   return {
     category: normalizeCategory(parsed.category),

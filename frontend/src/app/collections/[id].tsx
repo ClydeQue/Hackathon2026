@@ -23,6 +23,7 @@ import {
 import type { ClothingItem, Collection } from '@/types';
 
 type Stage = 'view' | 'add';
+type Shelf = 'active' | 'archived';
 
 function ItemCard({ item }: { item: ClothingItem }) {
   const [url, setUrl] = useState<string | null>(null);
@@ -65,10 +66,14 @@ export default function CollectionDetail() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [stage, setStage] = useState<Stage>('view');
+  const [shelf, setShelf] = useState<Shelf>('active');
   const [collection, setCollection] = useState<Collection | null>(null);
-  const [items, setItems] = useState<ClothingItem[]>([]);
+  const [activeItems, setActiveItems] = useState<ClothingItem[]>([]);
+  const [archivedItems, setArchivedItems] = useState<ClothingItem[]>([]);
   const [candidates, setCandidates] = useState<ClothingItem[] | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const items = shelf === 'active' ? activeItems : archivedItems;
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -88,14 +93,22 @@ export default function CollectionDetail() {
     }
     setCollection(col as Collection);
 
+    // One round trip; partition into active/archived client-side so the
+    // shelf-count badges stay accurate without a second query.
     const { data: rows } = await supabase
       .from('collection_items')
-      .select('item_id, clothing_items(*)')
+      .select('item_id, archived_at, clothing_items(*)')
       .eq('collection_id', id);
-    const itemsInColl = ((rows ?? []) as any[])
-      .map((r) => r.clothing_items as ClothingItem)
-      .filter(Boolean);
-    setItems(itemsInColl);
+    const active: ClothingItem[] = [];
+    const archived: ClothingItem[] = [];
+    for (const r of (rows ?? []) as any[]) {
+      const item = r.clothing_items as ClothingItem | null;
+      if (!item) continue;
+      if (r.archived_at) archived.push(item);
+      else active.push(item);
+    }
+    setActiveItems(active);
+    setArchivedItems(archived);
     setLoading(false);
   }, [id, router]);
 
@@ -140,13 +153,48 @@ export default function CollectionDetail() {
       });
   }
 
-  function removeItem(item: ClothingItem) {
+  async function setArchived(item: ClothingItem, archived: boolean) {
     if (!id) return;
+    const { error } = await supabase
+      .from('collection_items')
+      .update({ archived_at: archived ? new Date().toISOString() : null })
+      .eq('collection_id', id)
+      .eq('item_id', item.id);
+    if (error) {
+      Alert.alert(archived ? 'Archive failed' : 'Restore failed', error.message);
+      return;
+    }
+    if (archived) {
+      setActiveItems((cur) => cur.filter((i) => i.id !== item.id));
+      setArchivedItems((cur) => [item, ...cur]);
+    } else {
+      setArchivedItems((cur) => cur.filter((i) => i.id !== item.id));
+      setActiveItems((cur) => [item, ...cur]);
+    }
+  }
+
+  function dropFromBothShelves(itemId: string) {
+    setActiveItems((cur) => cur.filter((i) => i.id !== itemId));
+    setArchivedItems((cur) => cur.filter((i) => i.id !== itemId));
+  }
+
+  function itemActions(item: ClothingItem) {
+    if (!id) return;
+    const isArchived = shelf === 'archived';
     Alert.alert(
       item.brand ?? item.category,
-      'Remove from this collection only, or delete the item from your closet entirely?',
+      undefined,
       [
         { text: 'Cancel', style: 'cancel' },
+        isArchived
+          ? {
+              text: 'Restore to collection',
+              onPress: () => setArchived(item, false),
+            }
+          : {
+              text: 'Archive in collection',
+              onPress: () => setArchived(item, true),
+            },
         {
           text: 'Remove from collection',
           onPress: async () => {
@@ -155,7 +203,7 @@ export default function CollectionDetail() {
               .delete()
               .eq('collection_id', id)
               .eq('item_id', item.id);
-            setItems((cur) => cur.filter((i) => i.id !== item.id));
+            dropFromBothShelves(item.id);
           },
         },
         {
@@ -176,7 +224,7 @@ export default function CollectionDetail() {
               .remove([item.photo_path])
               .catch(() => {});
             invalidateSignedPhotoUrl(item.photo_path);
-            setItems((cur) => cur.filter((i) => i.id !== item.id));
+            dropFromBothShelves(item.id);
           },
         },
       ],
@@ -264,14 +312,35 @@ export default function CollectionDetail() {
         </Pressable>
       </View>
 
-      <Text style={styles.subhead}>
-        {items.length} item{items.length === 1 ? '' : 's'}
-      </Text>
+      <View style={styles.shelfRow}>
+        {(['active', 'archived'] as const).map((s) => (
+          <Pressable
+            key={s}
+            onPress={() => setShelf(s)}
+            style={[styles.shelfPill, shelf === s && styles.shelfPillActive]}
+          >
+            <Text
+              style={[styles.shelfPillText, shelf === s && styles.shelfPillTextActive]}
+            >
+              {s === 'active' ? 'Active' : 'Archived'}
+              {' · '}
+              {s === 'active' ? activeItems.length : archivedItems.length}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      <Text style={styles.subhead}>Long-press an item for archive / remove.</Text>
 
       {items.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={styles.emptyTitle}>Empty collection.</Text>
-          <Text style={styles.emptyBody}>Tap "Add items" to start filling it.</Text>
+          <Text style={styles.emptyTitle}>
+            {shelf === 'archived' ? 'Nothing archived.' : 'Empty collection.'}
+          </Text>
+          <Text style={styles.emptyBody}>
+            {shelf === 'archived'
+              ? 'Long-press an active item to shelve it here.'
+              : 'Tap "Add items" to start filling it.'}
+          </Text>
         </View>
       ) : (
         <FlatList
@@ -283,7 +352,8 @@ export default function CollectionDetail() {
             <ItemTile
               item={item}
               onPress={() => router.push(`/item/${item.id}`)}
-              onRemove={() => removeItem(item)}
+              onLongPress={() => itemActions(item)}
+              badge={shelf === 'archived' ? 'Archived' : null}
             />
           )}
         />
@@ -310,7 +380,22 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 18, fontWeight: '700', flex: 1, textAlign: 'center' },
   cancelText: { color: '#666', fontWeight: '600', fontSize: 15, width: 60 },
-  subhead: { color: '#666', paddingHorizontal: 16, paddingBottom: 8 },
+  subhead: { color: '#888', fontSize: 12, paddingHorizontal: 16, paddingBottom: 8 },
+  shelfRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  shelfPill: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    backgroundColor: '#eee',
+  },
+  shelfPillActive: { backgroundColor: '#111' },
+  shelfPillText: { color: '#333', fontWeight: '600', fontSize: 13 },
+  shelfPillTextActive: { color: '#fff' },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   emptyTitle: { fontSize: 20, fontWeight: '700' },
   emptyBody: { color: '#666', marginTop: 6, textAlign: 'center' },

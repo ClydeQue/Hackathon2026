@@ -1,8 +1,13 @@
-import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Animated, StyleSheet, Text, View } from 'react-native';
 import Swiper from 'react-native-deck-swiper';
 
-const OVERLAY_OPACITY_THRESHOLD = 120;
+const STAMP_THRESHOLD = 120;
+
+// Default card height. react-native-deck-swiper sizes cards from
+// Dimensions.get('window') and ignores the parent container, so we override
+// via cardStyle. Callers can pass `cardHeight` to tune per-screen.
+const DEFAULT_CARD_HEIGHT = 750;
 
 type Props<T> = {
   cards: T[];
@@ -15,6 +20,7 @@ type Props<T> = {
   rightColor?: string;
   leftColor?: string;
   bottomInset?: number;
+  cardHeight?: number;
 };
 
 export function ActionSwiperDeck<T>({
@@ -28,54 +34,103 @@ export function ActionSwiperDeck<T>({
   rightColor = '#0a8',
   leftColor = '#c0392b',
   bottomInset = 0,
+  cardHeight = DEFAULT_CARD_HEIGHT,
 }: Props<T>) {
-  const [dragX, setDragX] = useState(0);
+  const dragX = useRef(new Animated.Value(0)).current;
   const [cursor, setCursor] = useState(0);
 
-  const yesOpacity = Math.min(Math.max(dragX, 0) / OVERLAY_OPACITY_THRESHOLD, 1);
-  const nopeOpacity = Math.min(Math.max(-dragX, 0) / OVERLAY_OPACITY_THRESHOLD, 1);
+  function springStampBack() {
+    Animated.spring(dragX, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 90,
+      friction: 8,
+    }).start();
+  }
+
+  const rightOpacity = dragX.interpolate({
+    inputRange: [0, STAMP_THRESHOLD],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+  const rightScale = dragX.interpolate({
+    inputRange: [0, STAMP_THRESHOLD],
+    outputRange: [0.4, 1],
+    extrapolate: 'clamp',
+  });
+  const leftOpacity = dragX.interpolate({
+    inputRange: [-STAMP_THRESHOLD, 0],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+  const leftScale = dragX.interpolate({
+    inputRange: [-STAMP_THRESHOLD, 0],
+    outputRange: [1, 0.4],
+    extrapolate: 'clamp',
+  });
 
   return (
     <View style={styles.container}>
-      <View style={styles.deckWrap}>
-        <Swiper
-          cards={cards}
-          backgroundColor="transparent"
-          stackSize={3}
-          cardVerticalMargin={20}
-          marginBottom={bottomInset}
-          renderCard={(card: T, index: number) =>
-            card ? <>{renderCard(card, index)}</> : null
-          }
-          onSwiping={(x: number) => setDragX(x)}
-          onSwipedAborted={() => setDragX(0)}
-          onSwiped={(i: number) => setCursor(i + 1)}
-          onSwipedRight={(i: number) => {
-            setDragX(0);
-            onSwipeRight(cards[i], i);
-          }}
-          onSwipedLeft={(i: number) => {
-            setDragX(0);
-            onSwipeLeft(cards[i], i);
-          }}
-          onSwipedAll={onAllDone}
-          disableTopSwipe
-          disableBottomSwipe
-        />
-      </View>
-      <View
-        pointerEvents="none"
-        style={[styles.overlayCenter, { bottom: bottomInset }]}
-      >
-        {dragX > 0 ? (
-          <Text style={[styles.stamp, { color: rightColor, opacity: yesOpacity }]}>
-            {rightLabel}
-          </Text>
-        ) : dragX < 0 ? (
-          <Text style={[styles.stamp, { color: leftColor, opacity: nopeOpacity }]}>
-            {leftLabel}
-          </Text>
-        ) : null}
+      <View style={[styles.deckWrap, { paddingBottom: bottomInset }]}>
+        <View style={[styles.deckSlot, { maxHeight: cardHeight }]}>
+          <Swiper
+            cards={cards}
+            backgroundColor="transparent"
+            stackSize={3}
+            cardVerticalMargin={0}
+            cardStyle={{ top: 0, height: cardHeight }}
+            renderCard={(card: T, index: number) =>
+              card ? <>{renderCard(card, index)}</> : null
+            }
+            onSwiping={(x: number) => dragX.setValue(x)}
+            onSwipedAborted={springStampBack}
+            onSwiped={(i: number) => setCursor(i + 1)}
+            onSwipedRight={(i: number) => {
+              springStampBack();
+              onSwipeRight(cards[i], i);
+            }}
+            onSwipedLeft={(i: number) => {
+              springStampBack();
+              onSwipeLeft(cards[i], i);
+            }}
+            onSwipedAll={onAllDone}
+            disableTopSwipe
+            disableBottomSwipe
+            verticalSwipe={false}
+          />
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.stampLayer, { opacity: rightOpacity }]}
+          >
+            <Animated.View
+              style={[
+                styles.stampBox,
+                { borderColor: rightColor },
+                { transform: [{ scale: rightScale }, { rotate: '-18deg' }] },
+              ]}
+            >
+              <Text style={[styles.stampText, { color: rightColor }]}>
+                {rightLabel}
+              </Text>
+            </Animated.View>
+          </Animated.View>
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.stampLayer, { opacity: leftOpacity }]}
+          >
+            <Animated.View
+              style={[
+                styles.stampBox,
+                { borderColor: leftColor },
+                { transform: [{ scale: leftScale }, { rotate: '18deg' }] },
+              ]}
+            >
+              <Text style={[styles.stampText, { color: leftColor }]}>
+                {leftLabel}
+              </Text>
+            </Animated.View>
+          </Animated.View>
+        </View>
       </View>
       {cards.length > 0 ? (
         <Text style={[styles.progress, { bottom: bottomInset + 16 }]}>
@@ -89,18 +144,31 @@ export function ActionSwiperDeck<T>({
 const styles = StyleSheet.create({
   container: { flex: 1 },
   deckWrap: { flex: 1 },
-  overlayCenter: {
+  // Pinned to top of deckWrap; cardHeight cap matches the cardStyle we hand
+  // to the Swiper so the stamp overlay covers exactly the card.
+  deckSlot: { flex: 1 },
+  stampLayer: {
     position: 'absolute',
     left: 0,
     right: 0,
     top: 0,
+    bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 999,
+    elevation: 20,
   },
-  stamp: {
-    fontSize: 36,
+  stampBox: {
+    paddingVertical: 10,
+    paddingHorizontal: 28,
+    borderWidth: 5,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+  },
+  stampText: {
+    fontSize: 44,
     fontWeight: '900',
-    letterSpacing: 2,
+    letterSpacing: 3,
   },
   progress: {
     position: 'absolute',
