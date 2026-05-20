@@ -93,6 +93,32 @@ export default function Cart() {
     }, [load]),
   );
 
+  async function removeFromCart(item: ClothingItem) {
+    const { data: u } = await supabase.auth.getUser();
+    if (!u.user) return;
+    // Flip the swipe to 'left' so the item drops out of the cart but won't
+    // pop back up in the donation feed either.
+    const { error } = await supabase
+      .from('swipes')
+      .update({ direction: 'left' })
+      .eq('swiper_id', u.user.id)
+      .eq('item_id', item.id);
+    if (error) {
+      Alert.alert('Could not remove', error.message);
+      return;
+    }
+    // Optimistic: prune locally, then refresh in the background.
+    setBundles((prev) =>
+      prev
+        .map((b) =>
+          b.donor.user_id === item.owner_id
+            ? { ...b, items: b.items.filter((i) => i.id !== item.id) }
+            : b,
+        )
+        .filter((b) => b.items.length > 0),
+    );
+  }
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -135,7 +161,9 @@ export default function Cart() {
               data={bundle.items}
               numColumns={2}
               keyExtractor={(i) => i.id}
-              renderItem={({ item }) => <ItemTile item={item} />}
+              renderItem={({ item }) => (
+                <ItemTile item={item} onRemove={() => removeFromCart(item)} />
+              )}
               scrollEnabled={false}
             />
           </View>

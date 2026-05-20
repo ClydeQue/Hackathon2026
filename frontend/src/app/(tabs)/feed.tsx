@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import Swiper from 'react-native-deck-swiper';
 import { SwipeCard } from '@/components/SwipeCard';
 import { supabase } from '@/lib/supabase';
@@ -20,6 +21,7 @@ export default function Feed() {
   const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [exhausted, setExhausted] = useState(false);
+  const tabBarHeight = useBottomTabBarHeight();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -127,6 +129,7 @@ export default function Feed() {
           backgroundColor="transparent"
           stackSize={3}
           cardVerticalMargin={20}
+          marginBottom={tabBarHeight}
           renderCard={(card: FeedItem) =>
             card ? <SwipeCard item={card} donorName={card.donor_name} /> : null
           }
@@ -138,16 +141,15 @@ export default function Feed() {
           overlayLabels={{
             left: {
               title: 'NOPE',
-              style: { label: styles.labelLeft, wrapper: styles.labelLeftWrap },
+              style: { label: styles.stampNope, wrapper: styles.stampWrap },
             },
             right: {
-              title: 'WANT',
-              style: { label: styles.labelRight, wrapper: styles.labelRightWrap },
+              title: 'YES',
+              style: { label: styles.stampYes, wrapper: styles.stampWrap },
             },
           }}
         />
       </View>
-      <Text style={styles.hint}>Swipe right to add to your cart.</Text>
     </SafeAreaView>
   );
 }
@@ -166,21 +168,22 @@ const styles = StyleSheet.create({
   },
   refreshText: { color: '#fff', fontWeight: '600' },
   deckWrap: { flex: 1 },
-  hint: { textAlign: 'center', color: '#888', paddingBottom: 16 },
-  labelLeft: { color: '#a00', fontSize: 32, fontWeight: '800' },
-  labelLeftWrap: {
-    flexDirection: 'column',
-    alignItems: 'flex-end',
-    justifyContent: 'flex-start',
-    marginTop: 40,
-    marginLeft: -20,
+  // Centered, borderless overlay labels.
+  stampWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  labelRight: { color: '#0a8', fontSize: 32, fontWeight: '800' },
-  labelRightWrap: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    justifyContent: 'flex-start',
-    marginTop: 40,
-    marginLeft: 20,
+  stampYes: {
+    color: '#0a8',
+    fontSize: 36,
+    fontWeight: '900',
+    letterSpacing: 2,
+  },
+  stampNope: {
+    color: '#c0392b',
+    fontSize: 36,
+    fontWeight: '900',
+    letterSpacing: 2,
   },
 });

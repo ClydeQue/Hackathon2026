@@ -2,16 +2,16 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { signedPhotoUrl, supabase } from '@/lib/supabase';
+import { invalidateSignedPhotoUrl, signedPhotoUrl, supabase } from '@/lib/supabase';
 import type { ClothingItem, ItemStatus } from '@/types';
 
 const STATUSES: ItemStatus[] = ['keep', 'archive', 'donate'];
@@ -68,6 +68,7 @@ export default function ItemDetail() {
           await supabase.from('clothing_items').delete().eq('id', item.id);
           // Best-effort storage cleanup; ignore failures.
           await supabase.storage.from('garments').remove([item.photo_path]);
+          invalidateSignedPhotoUrl(item.photo_path);
           router.back();
         },
       },
@@ -87,7 +88,14 @@ export default function ItemDetail() {
       <Stack.Screen options={{ headerShown: true, title: item.brand ?? item.category }} />
       <ScrollView>
         <View style={styles.imageBox}>
-          {url ? <Image source={{ uri: url }} style={styles.image} /> : null}
+          {url ? (
+            <Image
+              source={{ uri: url, cacheKey: item.photo_path }}
+              style={styles.image}
+              contentFit="cover"
+              transition={150}
+            />
+          ) : null}
         </View>
         <View style={styles.body}>
           <Text style={styles.title}>{item.brand ?? 'Untitled'}</Text>

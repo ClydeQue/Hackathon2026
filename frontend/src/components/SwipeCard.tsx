@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
 import { signedPhotoUrl } from '@/lib/supabase';
 import type { ClothingItem } from '@/types';
 
@@ -26,7 +27,14 @@ export function SwipeCard({ item, donorName }: Props) {
   return (
     <View style={styles.card}>
       <View style={styles.imageBox}>
-        {url ? <Image source={{ uri: url }} style={styles.image} /> : null}
+        {url ? (
+          <Image
+            source={{ uri: url, cacheKey: item.photo_path }}
+            style={styles.image}
+            contentFit="cover"
+            transition={200}
+          />
+        ) : null}
       </View>
       <View style={styles.meta}>
         <Text style={styles.title}>
