@@ -240,7 +240,7 @@ export default function ProfileScreen() {
             )}
             <View style={styles.avatarEdit}>
               {uploadingAvatar ? (
-                <Spinner size="small" color="#fff" />
+                <Spinner size={16} color="#fff" />
               ) : (
                 <Ionicons name="camera" size={16} color="#fff" />
               )}
@@ -360,7 +360,7 @@ export default function ProfileScreen() {
             disabled={locatingMe}
           >
             {locatingMe ? (
-              <Spinner size="small" color="#111" />
+              <Spinner size={16} color="#111" />
             ) : (
               <Ionicons name="locate-outline" size={18} color="#111" />
             )}
@@ -560,7 +560,7 @@ function PickupPickerModal({
               ]}
             >
               {searching ? (
-                <Spinner color="#fff" size="small" />
+                <Spinner color="#fff" size={16} />
               ) : (
                 <Text style={pickerStyles.searchBtnText}>Find</Text>
               )}

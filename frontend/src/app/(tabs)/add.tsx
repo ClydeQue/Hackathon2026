@@ -19,7 +19,7 @@ import {
   type TagEditorErrors,
   type TagEditorValue,
 } from '@/components/TagEditor';
-import { scanPhoto } from '@/lib/api';
+import { scanPhoto, type ScanPhotoInput } from '@/lib/api';
 import { createItemFromPickedPhoto } from '@/lib/items';
 
 type Stage = 'pick' | 'confirm' | 'saving';
@@ -45,6 +45,7 @@ export default function AddItem() {
   const router = useRouter();
   const [stage, setStage] = useState<Stage>('pick');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [scanPhotoInput, setScanPhotoInput] = useState<ScanPhotoInput | null>(null);
   const [tags, setTags] = useState<TagEditorValue>(DEFAULT_TAGS);
   const [errors, setErrors] = useState<TagEditorErrors>({});
   const [scanning, setScanning] = useState(false);
@@ -58,6 +59,7 @@ export default function AddItem() {
     scanGenRef.current += 1;
     setStage('pick');
     setPhotoUri(null);
+    setScanPhotoInput(null);
     setTags(DEFAULT_TAGS);
     setErrors({});
     setScanning(false);
@@ -100,22 +102,28 @@ export default function AddItem() {
             quality: 0.8,
           });
     if (result.canceled || !result.assets?.[0]) return;
-    const uri = result.assets[0].uri;
-    setPhotoUri(uri);
+    const asset = result.assets[0];
+    const photo: ScanPhotoInput = {
+      uri: asset.uri,
+      name: asset.fileName,
+      type: asset.mimeType,
+    };
+    setPhotoUri(photo.uri);
+    setScanPhotoInput(photo);
     setTags(DEFAULT_TAGS);
     setStage('confirm');
-    void runScan(uri);
+    void runScan(photo);
   }
 
-  async function runScan(uri: string) {
+  async function runScan(photo: ScanPhotoInput) {
     scanGenRef.current += 1;
     const gen = scanGenRef.current;
     setScanning(true);
     setScanError(null);
     aiTagsRef.current = null;
-    console.log('[add] scan starting', { uri });
+    console.log('[add] scan starting', photo);
     try {
-      const result = await scanPhoto(uri);
+      const result = await scanPhoto(photo);
       if (gen !== scanGenRef.current) return;
       console.log('[add] scan result', result);
       aiTagsRef.current = (result.raw as Record<string, unknown> | undefined) ?? null;
@@ -204,7 +212,7 @@ export default function AddItem() {
             </Text>
             {scanning ? (
               <View style={styles.scanPill}>
-                <Spinner size="small" color="#111" />
+                <Spinner size={16} color="#111" />
                 <Text style={styles.scanPillText}>Scanning photo…</Text>
               </View>
             ) : null}
@@ -214,9 +222,9 @@ export default function AddItem() {
                 <Text style={styles.scanPillErrorText}>
                   {scanError} Fill the tags below to continue.
                 </Text>
-                {photoUri ? (
+                {scanPhotoInput ? (
                   <Pressable
-                    onPress={() => runScan(photoUri)}
+                    onPress={() => runScan(scanPhotoInput)}
                     style={styles.retryBtn}
                     hitSlop={8}
                   >

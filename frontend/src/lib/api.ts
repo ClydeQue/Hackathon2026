@@ -3,24 +3,30 @@ import type { ScanResult } from '@/types';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'http://localhost:3000';
 
+export type ScanPhotoInput = {
+  uri: string;
+  name?: string | null;
+  type?: string | null;
+};
+
 async function authHeader(): Promise<Record<string, string>> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-// Hard cap on a single scan attempt. The backend already retries transient
-// 503/429 with its own backoff; this just prevents the app from hanging
-// when the host is unreachable (firewall, dropped Wi-Fi, sleeping laptop).
-const SCAN_TIMEOUT_MS = 20_000;
+// Hard cap on a single scan attempt. iPhone library photos can take a while to
+// upload over LAN before Gemini even starts classifying, so keep this longer
+// than the backend's transient retry window.
+const SCAN_TIMEOUT_MS = 60_000;
 
-export async function scanPhoto(uri: string, signal?: AbortSignal): Promise<ScanResult> {
+export async function scanPhoto(photo: ScanPhotoInput, signal?: AbortSignal): Promise<ScanResult> {
   const form = new FormData();
   // React Native FormData accepts this shape for file uploads.
   form.append('image', {
-    uri,
-    name: 'item.jpg',
-    type: 'image/jpeg',
+    uri: photo.uri,
+    name: photo.name ?? fileNameFromUri(photo.uri),
+    type: photo.type ?? mediaTypeFromName(photo.name ?? photo.uri),
   } as unknown as Blob);
 
   const timer = new AbortController();
@@ -64,9 +70,24 @@ export async function scanPhoto(uri: string, signal?: AbortSignal): Promise<Scan
 function scanMessageForStatus(status: number): string {
   if (status === 401 || status === 403) return 'Please sign in again.';
   if (status === 413) return 'That photo is too big.';
+  if (status === 415) return 'That photo format is not supported.';
   if (status === 429) return 'Scanner is busy — try again.';
   if (status === 408 || status === 504) return 'Scan timed out. Try again.';
   if (status === 503) return 'Scanner is offline — try again soon.';
   if (status >= 500) return 'Scanner had a hiccup.';
   return 'Auto-tag unavailable.';
+}
+
+function fileNameFromUri(uri: string): string {
+  const cleanUri = uri.split('?')[0] ?? uri;
+  const lastSegment = cleanUri.split('/').filter(Boolean).pop();
+  return lastSegment ? decodeURIComponent(lastSegment) : 'item.jpg';
+}
+
+function mediaTypeFromName(nameOrUri: string): string {
+  const lower = nameOrUri.split('?')[0]?.toLowerCase() ?? '';
+  if (lower.endsWith('.png')) return 'image/png';
+  if (lower.endsWith('.webp')) return 'image/webp';
+  if (lower.endsWith('.gif')) return 'image/gif';
+  return 'image/jpeg';
 }
