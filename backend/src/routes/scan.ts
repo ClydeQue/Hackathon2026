@@ -44,6 +44,7 @@ router.post(
       const tags = await classifyGarment(req.file.buffer.toString("base64"), mediaType);
       res.json(tags);
     } catch (err: unknown) {
+      console.error("[scan] Gemini error:", err);
       res.status(502).json({
         error: "Vision classification failed",
         detail: err instanceof Error ? err.message : String(err),

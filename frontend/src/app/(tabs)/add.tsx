@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import {
   Alert,
+  Animated,
   Image,
   Linking,
   Pressable,
@@ -21,6 +22,17 @@ import {
 } from '@/components/TagEditor';
 import { scanPhoto, type ScanPhotoInput } from '@/lib/api';
 import { createItemFromPickedPhoto } from '@/lib/items';
+
+function PressBtn({ children, style, onPress, disabled }: { children: React.ReactNode; style?: any; onPress?: () => void; disabled?: boolean }) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const pressIn = () => { if (disabled) return; Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 60, bounciness: 0 }).start(); };
+  const pressOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 30, bounciness: 8 }).start();
+  return (
+    <Pressable onPressIn={pressIn} onPressOut={pressOut} onPress={onPress} disabled={disabled}>
+      <Animated.View style={[style, { transform: [{ scale }] }]}>{children}</Animated.View>
+    </Pressable>
+  );
+}
 
 type Stage = 'pick' | 'confirm' | 'saving';
 
@@ -95,11 +107,11 @@ export default function AddItem() {
       source === 'camera'
         ? await ImagePicker.launchCameraAsync({
             mediaTypes: ['images'],
-            quality: 0.8,
+            quality: 0.4,
           })
         : await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ['images'],
-            quality: 0.8,
+            quality: 0.4,
           });
     if (result.canceled || !result.assets?.[0]) return;
     const asset = result.assets[0];
@@ -192,14 +204,14 @@ export default function AddItem() {
 
         {stage === 'pick' ? (
           <View style={styles.actionRow}>
-            <Pressable style={styles.action} onPress={() => pickPhoto('camera')}>
-              <Ionicons name="camera-outline" size={20} color="#fff" />
+            <PressBtn style={styles.action} onPress={() => pickPhoto('camera')}>
+              <Ionicons name="camera-outline" size={20} color="#F4FF61" />
               <Text style={styles.actionText}>Camera</Text>
-            </Pressable>
-            <Pressable style={styles.action} onPress={() => pickPhoto('library')}>
-              <Ionicons name="images-outline" size={20} color="#fff" />
+            </PressBtn>
+            <PressBtn style={styles.action} onPress={() => pickPhoto('library')}>
+              <Ionicons name="images-outline" size={20} color="#F4FF61" />
               <Text style={styles.actionText}>Library</Text>
-            </Pressable>
+            </PressBtn>
           </View>
         ) : null}
 
@@ -235,7 +247,7 @@ export default function AddItem() {
               </View>
             ) : null}
             <TagEditor value={tags} onChange={updateTags} errors={errors} />
-            <Pressable
+            <PressBtn
               style={[styles.save, stage === 'saving' && { opacity: 0.6 }]}
               disabled={stage === 'saving'}
               onPress={save}
@@ -243,7 +255,7 @@ export default function AddItem() {
               <Text style={styles.saveText}>
                 {stage === 'saving' ? 'Saving…' : 'Save to closet'}
               </Text>
-            </Pressable>
+            </PressBtn>
             <Pressable style={styles.cancel} onPress={reset}>
               <Text style={styles.cancelText}>Discard</Text>
             </Pressable>
@@ -255,36 +267,88 @@ export default function AddItem() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, backgroundColor: '#EEF4FB' },
   scroll: { padding: 20, gap: 12 },
-  preview: { width: '100%', aspectRatio: 1, borderRadius: 16, backgroundColor: '#eee' },
+  preview: {
+    width: '100%',
+    aspectRatio: 1,
+    backgroundColor: '#DCEAF6',
+    borderWidth: 3,
+    borderColor: '#0F1117',
+    shadowColor: '#0F1117',
+    shadowOffset: { width: 6, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+  },
   previewEmpty: { justifyContent: 'center', alignItems: 'center' },
-  previewHint: { color: '#888' },
-  actionRow: { flexDirection: 'row', gap: 12, marginTop: 12 },
+  previewHint: {
+    color: '#0F1117',
+    opacity: 0.5,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    fontSize: 12,
+    letterSpacing: 0.6,
+  },
+  actionRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
   action: {
     flex: 1,
     padding: 16,
-    borderRadius: 12,
-    backgroundColor: '#111',
+    backgroundColor: '#0F1117',
+    borderWidth: 3,
+    borderColor: '#0F1117',
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
     gap: 8,
+    shadowColor: '#0F1117',
+    shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
   },
-  actionText: { color: '#fff', fontWeight: '600' },
-  title: { fontSize: 20, fontWeight: '700', marginTop: 16 },
-  hint: { color: '#666' },
-  requiredHint: { color: '#c00', fontWeight: '700' },
+  actionText: {
+    color: '#F4FF61',
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    fontSize: 12,
+    letterSpacing: 0.6,
+  },
+  title: {
+    fontFamily: 'WorkSans',
+    fontSize: 18,
+    fontWeight: '900',
+    marginTop: 16,
+    color: '#0F1117',
+    letterSpacing: -0.2,
+  },
+  hint: { color: '#0F1117', opacity: 0.65, fontSize: 13, lineHeight: 18 },
+  requiredHint: { color: '#FF5C4D', fontWeight: '900' },
   save: {
     marginTop: 20,
-    backgroundColor: '#111',
+    backgroundColor: '#2A6FDB',
+    borderWidth: 3,
+    borderColor: '#0F1117',
     padding: 16,
-    borderRadius: 12,
     alignItems: 'center',
+    shadowColor: '#0F1117',
+    shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
   },
-  saveText: { color: '#fff', fontWeight: '600' },
+  saveText: {
+    color: '#EEF4FB',
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    fontSize: 14,
+  },
   cancel: { marginTop: 8, padding: 12, alignItems: 'center' },
-  cancelText: { color: '#a00' },
+  cancelText: {
+    color: '#FF5C4D',
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    fontSize: 12,
+    letterSpacing: 0.6,
+  },
   scanPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -292,22 +356,28 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 6,
     paddingHorizontal: 12,
-    borderRadius: 999,
-    backgroundColor: '#f1f1f1',
+    backgroundColor: '#DCEAF6',
+    borderWidth: 2,
+    borderColor: '#0F1117',
     marginTop: 8,
   },
-  scanPillText: { color: '#111', fontWeight: '500' },
-  scanPillError: { backgroundColor: '#fdecec', flexWrap: 'wrap' },
-  scanPillErrorText: { color: '#a00', fontWeight: '500', flexShrink: 1 },
+  scanPillText: {
+    color: '#0F1117',
+    fontWeight: '700',
+    fontSize: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  scanPillError: { backgroundColor: '#FFE5E2', flexWrap: 'wrap' },
+  scanPillErrorText: { color: '#FF5C4D', fontWeight: '700', flexShrink: 1 },
   retryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#a00',
+    borderWidth: 2,
+    borderColor: '#FF5C4D',
   },
-  retryBtnText: { color: '#a00', fontWeight: '600', fontSize: 12 },
+  retryBtnText: { color: '#FF5C4D', fontWeight: '900', fontSize: 11 },
 });

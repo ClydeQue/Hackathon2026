@@ -17,45 +17,36 @@ import { SwipeCard } from '@/components/SwipeCard';
 import { supabase } from '@/lib/supabase';
 import type { ClothingItem, SwipeDirection } from '@/types';
 
+const INK   = '#0F1117';
+const CREAM  = '#EEF4FB';
+const LIME   = '#F4FF61';
+const CORAL  = '#FF5C4D';
+const PINK   = '#2A6FDB';
+
 type DiscoverItem = ClothingItem & { donor_name: string };
 
-// Drag distance (px) at which the YES/NOPE stamp reaches full opacity/scale.
-const STAMP_THRESHOLD = 120;
-
-// Visual ceiling on the card — looks oversized on tablets / very tall phones.
-const MAX_CARD_HEIGHT = 750;
-// Floor so the card never collapses on truly tiny devices.
-const MIN_CARD_HEIGHT = 420;
-// Approximate non-card chrome above the deck (navigator header). Hard to
-// measure cleanly across platforms; this is a conservative guess that errs
-// toward making the card a bit shorter rather than overflow.
-const HEADER_RESERVE = 60;
-// Breathing room above the card so it doesn't kiss the navigator header.
-const TOP_GUTTER = 12;
+const STAMP_THRESHOLD = 100;
+const MAX_CARD_HEIGHT = 640;
+const MIN_CARD_HEIGHT = 320;
+// approximate heights of header and action-button row (used in card height calc)
+const HEADER_H  = 92;
+const BUTTONS_H = 80;
 
 export default function Discover() {
   const [items, setItems] = useState<DiscoverItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [exhausted, setExhausted] = useState(false);
   const dragX = useRef(new Animated.Value(0)).current;
+  const swiperRef = useRef<any>(null);
   const tabBarHeight = useBottomTabBarHeight();
   const { height: windowHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
-  // Available vertical space for the deck after subtracting the navigator
-  // header, the bottom tab bar, and the top/bottom safe-area insets. Clamped
-  // to a sane min/max so the card never overflows on small phones nor
-  // stretches absurdly tall on iPads.
   const cardHeight = Math.max(
     MIN_CARD_HEIGHT,
     Math.min(
       MAX_CARD_HEIGHT,
-      windowHeight -
-        tabBarHeight -
-        insets.top -
-        insets.bottom -
-        HEADER_RESERVE -
-        TOP_GUTTER,
+      windowHeight - insets.top - tabBarHeight - HEADER_H - BUTTONS_H - 12,
     ),
   );
 
@@ -64,7 +55,6 @@ export default function Discover() {
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) return;
 
-    // Fetch already-swiped item ids so we can exclude them.
     const { data: swipes } = await supabase
       .from('swipes')
       .select('item_id')
@@ -93,7 +83,6 @@ export default function Discover() {
     }
     const rows = (itemRows ?? []) as ClothingItem[];
 
-    // Donor display_name in one batched profile lookup.
     const ownerIds = Array.from(new Set(rows.map((r) => r.owner_id)));
     const nameById = new Map<string, string>();
     if (ownerIds.length > 0) {
@@ -122,13 +111,9 @@ export default function Discover() {
   );
 
   async function recordSwipe(item: DiscoverItem | undefined, direction: SwipeDirection) {
-    // react-native-deck-swiper sometimes fires onSwiped* with stale / out-of-
-    // range indices when the deck is empty or being torn down — guard before
-    // touching item.id.
     if (!item) return;
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) return;
-    // Idempotent thanks to the unique(swiper_id, item_id) constraint.
     const { error } = await supabase
       .from('swipes')
       .insert({ swiper_id: u.user.id, item_id: item.id, direction });
@@ -146,17 +131,7 @@ export default function Discover() {
     }).start();
   }
 
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <Spinner />
-      </View>
-    );
-  }
-
   async function refreshDeck() {
-    // Dev-only convenience: clear our own swipe history so already-seen
-    // donations reappear. Other users' decks are untouched.
     const { data: u } = await supabase.auth.getUser();
     if (u.user) {
       const { error } = await supabase
@@ -169,13 +144,21 @@ export default function Discover() {
     load();
   }
 
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <Spinner />
+      </View>
+    );
+  }
+
   if (exhausted) {
     return (
-      <SafeAreaView style={styles.container} edges={['bottom']}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.center}>
-          <Text style={styles.emptyTitle}>You’ve seen everything.</Text>
+          <Text style={styles.emptyTitle}>You've seen everything.</Text>
           <Text style={styles.emptyBody}>Check back later for new donations.</Text>
-          <Pressable style={styles.refresh} onPress={refreshDeck}>
+          <Pressable style={styles.refreshBtn} onPress={refreshDeck}>
             <Text style={styles.refreshText}>Refresh</Text>
           </Pressable>
         </View>
@@ -190,7 +173,7 @@ export default function Discover() {
   });
   const yesScale = dragX.interpolate({
     inputRange: [0, STAMP_THRESHOLD],
-    outputRange: [0.4, 1],
+    outputRange: [0.6, 1],
     extrapolate: 'clamp',
   });
   const nopeOpacity = dragX.interpolate({
@@ -200,20 +183,32 @@ export default function Discover() {
   });
   const nopeScale = dragX.interpolate({
     inputRange: [-STAMP_THRESHOLD, 0],
-    outputRange: [1, 0.4],
+    outputRange: [1, 0.6],
     extrapolate: 'clamp',
   });
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
-      <View
-        style={[
-          styles.deckWrap,
-          { paddingTop: TOP_GUTTER, paddingBottom: tabBarHeight },
-        ]}
-      >
-        <View style={[styles.deckSlot, { maxHeight: cardHeight }]}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+
+      {/* WearAble header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Text style={styles.headerTitle}>
+            Nearby{'\n'}
+            <Text style={styles.headerEm}>giveaways</Text>
+          </Text>
+          <Text style={styles.eyebrow}>◉ Browse donations near you</Text>
+        </View>
+        <View style={styles.liveBadge}>
+          <Text style={styles.liveText}>● live</Text>
+        </View>
+      </View>
+
+      {/* Deck area */}
+      <View style={styles.deckOuter}>
+        <View style={[styles.deckSlot, { height: cardHeight }]}>
           <Swiper
+            ref={swiperRef}
             cards={items}
             backgroundColor="transparent"
             stackSize={3}
@@ -237,86 +232,182 @@ export default function Discover() {
             disableBottomSwipe
             verticalSwipe={false}
           />
+
+          {/* PASS sticker — fades in when dragging left */}
           <Animated.View
             pointerEvents="none"
-            style={[styles.stampLayer, { opacity: yesOpacity }]}
+            style={[styles.passLayer, { opacity: nopeOpacity }]}
           >
             <Animated.View
               style={[
-                styles.stampBox,
-                styles.stampYesBox,
-                { transform: [{ scale: yesScale }, { rotate: '-18deg' }] },
+                styles.passSticker,
+                { transform: [{ scale: nopeScale }, { rotate: '-14deg' }] },
               ]}
             >
-              <Text style={[styles.stampText, styles.stampYesText]}>YES</Text>
+              <Text style={styles.passText}>← PASS</Text>
             </Animated.View>
           </Animated.View>
+
+          {/* CLAIM sticker — fades in when dragging right */}
           <Animated.View
             pointerEvents="none"
-            style={[styles.stampLayer, { opacity: nopeOpacity }]}
+            style={[styles.claimLayer, { opacity: yesOpacity }]}
           >
             <Animated.View
               style={[
-                styles.stampBox,
-                styles.stampNopeBox,
-                { transform: [{ scale: nopeScale }, { rotate: '18deg' }] },
+                styles.claimSticker,
+                { transform: [{ scale: yesScale }, { rotate: '14deg' }] },
               ]}
             >
-              <Text style={[styles.stampText, styles.stampNopeText]}>NOPE</Text>
+              <Text style={styles.claimText}>CLAIM →</Text>
             </Animated.View>
           </Animated.View>
         </View>
       </View>
+
+      {/* Action buttons */}
+      <View style={[styles.actionRow, { paddingBottom: tabBarHeight + 6 }]}>
+        <Pressable
+          style={styles.btnPass}
+          onPress={() => swiperRef.current?.swipeLeft()}
+        >
+          <Text style={styles.btnPassText}>✕</Text>
+        </Pressable>
+        <Pressable
+          style={styles.btnClaim}
+          onPress={() => swiperRef.current?.swipeRight()}
+        >
+          <Text style={styles.btnClaimText}>♥</Text>
+        </Pressable>
+      </View>
+
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fafafa' },
+  container: { flex: 1, backgroundColor: CREAM },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  emptyTitle: { fontSize: 20, fontWeight: '700' },
-  emptyBody: { color: '#666', marginTop: 6 },
-  refresh: {
-    marginTop: 20,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    backgroundColor: '#111',
-    borderRadius: 12,
+
+  // ── Header ──────────────────────────────────────────────────────────────
+  header: {
+    flexDirection: 'row', alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 10,
+    borderBottomWidth: 3, borderBottomColor: INK,
+    backgroundColor: CREAM,
   },
-  refreshText: { color: '#fff', fontWeight: '600' },
-  deckWrap: { flex: 1 },
-  // Card slot is pinned to the top of the deckWrap with a hard ceiling on
-  // height so the card stays short rather than stretching to fill the screen.
-  // maxHeight is applied inline from the responsive cardHeight value.
-  deckSlot: { flex: 1 },
-  // Fills the deckSlot so the YES/NOPE stamp centers on the card, not on the
-  // empty space below it. elevation/zIndex keep it above the deck on both
-  // iOS (zIndex) and Android (elevation).
-  stampLayer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 999,
-    elevation: 20,
+  headerLeft: { flex: 1 },
+  headerTitle: {
+    fontFamily: 'WorkSans', fontWeight: '900',
+    fontSize: 26, color: INK, lineHeight: 28,
   },
-  stampBox: {
-    paddingVertical: 10,
-    paddingHorizontal: 28,
-    borderWidth: 5,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.85)',
+  headerEm: {
+    fontFamily: 'CherryBombOne-Regular',
+    fontSize: 28, color: PINK,
   },
-  stampYesBox: { borderColor: '#0a8' },
-  stampNopeBox: { borderColor: '#c0392b' },
-  stampText: {
-    fontSize: 44,
-    fontWeight: '900',
-    letterSpacing: 3,
+  eyebrow: {
+    fontFamily: 'WorkSans', fontWeight: '700',
+    fontSize: 10, color: INK, opacity: 0.65,
+    textTransform: 'uppercase', letterSpacing: 0.8,
+    marginTop: 5,
   },
-  stampYesText: { color: '#0a8' },
-  stampNopeText: { color: '#c0392b' },
+  liveBadge: {
+    backgroundColor: LIME,
+    borderWidth: 3, borderColor: INK,
+    paddingVertical: 5, paddingHorizontal: 9,
+    transform: [{ rotate: '6deg' }],
+    shadowColor: INK, shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 1, shadowRadius: 0,
+    marginTop: 4,
+  },
+  liveText: {
+    fontFamily: 'WorkSans', fontWeight: '900',
+    fontSize: 9, color: INK,
+    textTransform: 'uppercase', letterSpacing: 0.5,
+  },
+
+  // ── Deck ────────────────────────────────────────────────────────────────
+  deckOuter: { flex: 1, paddingHorizontal: 14, paddingTop: 8 },
+  deckSlot: { position: 'relative' },
+
+  // ── Sticker overlays ────────────────────────────────────────────────────
+  passLayer: {
+    position: 'absolute', top: 18, left: 6,
+    zIndex: 999, elevation: 20,
+  },
+  passSticker: {
+    backgroundColor: INK,
+    borderWidth: 3, borderColor: CORAL,
+    paddingVertical: 7, paddingHorizontal: 14,
+  },
+  passText: {
+    fontFamily: 'WorkSans', fontWeight: '900',
+    fontSize: 18, color: CORAL, letterSpacing: 0.5,
+  },
+  claimLayer: {
+    position: 'absolute', top: 18, right: 6,
+    zIndex: 999, elevation: 20,
+  },
+  claimSticker: {
+    backgroundColor: LIME,
+    borderWidth: 3, borderColor: INK,
+    paddingVertical: 7, paddingHorizontal: 14,
+  },
+  claimText: {
+    fontFamily: 'WorkSans', fontWeight: '900',
+    fontSize: 18, color: INK, letterSpacing: 0.5,
+  },
+
+  // ── Action buttons ──────────────────────────────────────────────────────
+  actionRow: {
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+    gap: 20, paddingTop: 12,
+  },
+  btnPass: {
+    width: 56, height: 56,
+    backgroundColor: CREAM,
+    borderWidth: 3, borderColor: INK,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: INK, shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 1, shadowRadius: 0,
+  },
+  btnPassText: {
+    fontFamily: 'WorkSans', fontWeight: '900',
+    fontSize: 22, color: CORAL,
+  },
+  btnClaim: {
+    width: 56, height: 56,
+    backgroundColor: LIME,
+    borderWidth: 3, borderColor: INK,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: INK, shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 1, shadowRadius: 0,
+  },
+  btnClaimText: {
+    fontFamily: 'WorkSans', fontWeight: '900',
+    fontSize: 22, color: INK,
+  },
+
+  // ── Empty state ─────────────────────────────────────────────────────────
+  emptyTitle: {
+    fontFamily: 'WorkSans', fontSize: 22, fontWeight: '900',
+    color: INK, letterSpacing: -0.3,
+  },
+  emptyBody: {
+    color: INK, opacity: 0.6, marginTop: 6,
+    fontFamily: 'WorkSans', fontWeight: '600',
+  },
+  refreshBtn: {
+    marginTop: 20, paddingVertical: 14, paddingHorizontal: 24,
+    backgroundColor: INK,
+    borderWidth: 3, borderColor: INK,
+    shadowColor: INK, shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 1, shadowRadius: 0,
+  },
+  refreshText: {
+    color: LIME, fontFamily: 'WorkSans',
+    fontWeight: '900', textTransform: 'uppercase',
+    letterSpacing: 0.8, fontSize: 13,
+  },
 });

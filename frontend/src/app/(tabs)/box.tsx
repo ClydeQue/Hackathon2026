@@ -60,12 +60,11 @@ const STATUS_ORDER: Record<DonationStatus, number> = {
   declined: 3,
 };
 
-// Brutalist status palette — solid accent colors with black borders/text.
 const STATUS_STYLE: Record<DonationStatus, { bg: string; fg: string; label: string }> = {
-  pending: { bg: '#FFE66D', fg: '#000', label: 'Pending' },
-  accepted: { bg: '#4ECDC4', fg: '#000', label: 'Accepted' },
-  received: { bg: '#000000', fg: '#FFFFFF', label: 'Received' },
-  declined: { bg: '#FFFFFF', fg: '#000000', label: 'Declined' },
+  pending:  { bg: '#FFAE2D', fg: '#0F1117', label: 'Pending'  },
+  accepted: { bg: '#5BA3E8', fg: '#EEF4FB', label: 'Accepted' },
+  received: { bg: '#0F1117', fg: '#F4FF61', label: 'Received' },
+  declined: { bg: '#EEF4FB', fg: '#0F1117', label: 'Declined' },
 };
 
 function StatusPill({ status }: { status: DonationStatus }) {
@@ -94,6 +93,15 @@ function formatDeadline(iso: string | null): string | null {
   if (diffDays < 7) return `Pickup in ${diffDays} days`;
   return `Pickup by ${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
 }
+
+const INK   = '#0F1117';
+const CREAM  = '#EEF4FB';
+const PAPER  = '#DCEAF6';
+const LIME   = '#F4FF61';
+const PINK   = '#2A6FDB';
+const SUN    = '#FFAE2D';
+const CYAN   = '#5BA3E8';
+const SMOKE  = '#C8DBF0';
 
 export default function Box() {
   const router = useRouter();
@@ -272,6 +280,22 @@ export default function Box() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
+      {/* Header */}
+      <View style={styles.pageHeader}>
+        <View>
+          <Text style={styles.eyebrow}>YOUR BOX</Text>
+          <Text style={styles.pageTitle}>
+            You <Text style={styles.pageTitleEm}>loved</Text>
+          </Text>
+        </View>
+        {incomingCount > 0 && (
+          <View style={styles.newMatchBadge}>
+            <Text style={styles.newMatchText}>{incomingCount} incoming</Text>
+          </View>
+        )}
+      </View>
+
+      {/* Tab toggle */}
       <View style={styles.viewPills}>
         <Pressable
           onPress={() => setView('outgoing')}
@@ -280,7 +304,7 @@ export default function Box() {
           <Text
             style={[styles.viewPillText, view === 'outgoing' && styles.viewPillTextActive]}
           >
-            Outgoing
+            Claimed
           </Text>
         </Pressable>
         <Pressable
@@ -290,8 +314,7 @@ export default function Box() {
           <Text
             style={[styles.viewPillText, view === 'incoming' && styles.viewPillTextActive]}
           >
-            Incoming
-            {incomingCount > 0 ? ` · ${incomingCount}` : ''}
+            Requests{incomingCount > 0 ? ` · ${incomingCount}` : ''}
           </Text>
         </Pressable>
       </View>
@@ -653,6 +676,7 @@ function ContactSheet({
     <Modal animationType="slide" transparent visible={!!party} onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable style={styles.sheet} onPress={() => {}}>
+          <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>{party.display_name}</Text>
           {rows.length === 0 ? (
             <Text style={styles.sheetEmpty}>
@@ -681,233 +705,255 @@ function ContactSheet({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, backgroundColor: CREAM },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  emptyTitle: { fontSize: 18, fontWeight: '700' },
-  emptyBody: { color: '#666', marginTop: 6, textAlign: 'center', fontSize: 13 },
+  emptyTitle: {
+    fontFamily: 'WorkSans', fontWeight: '900',
+    fontSize: 18, color: INK,
+  },
+  emptyBody: {
+    fontFamily: 'WorkSans', fontWeight: '500',
+    color: INK, opacity: 0.6, marginTop: 6, textAlign: 'center', fontSize: 13,
+  },
+
+  // ── WearAble header ───────────────────────────────────────────────────
+  pageHeader: {
+    flexDirection: 'row', alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18, paddingTop: 14, paddingBottom: 10,
+    borderBottomWidth: 3, borderBottomColor: INK,
+    backgroundColor: CREAM,
+  },
+  eyebrow: {
+    fontFamily: 'WorkSans', fontWeight: '700',
+    fontSize: 10, color: INK, opacity: 0.6,
+    letterSpacing: 1.2, textTransform: 'uppercase',
+  },
+  pageTitle: {
+    fontFamily: 'WorkSans', fontWeight: '900',
+    fontSize: 26, color: INK, lineHeight: 30, marginTop: 2,
+    letterSpacing: -0.3,
+  },
+  pageTitleEm: {
+    fontFamily: 'CherryBombOne-Regular',
+    fontSize: 28, color: PINK,
+  },
+  newMatchBadge: {
+    paddingVertical: 5, paddingHorizontal: 10,
+    backgroundColor: PINK,
+    borderWidth: 3, borderColor: INK,
+    shadowColor: INK, shadowOffset: { width: 3, height: 3 },
+    shadowOpacity: 1, shadowRadius: 0,
+    transform: [{ rotate: '2deg' }],
+  },
+  newMatchText: {
+    color: CREAM, fontFamily: 'WorkSans',
+    fontWeight: '900', fontSize: 10,
+    textTransform: 'uppercase', letterSpacing: 0.6,
+  },
+
+  // ── Tab toggle ────────────────────────────────────────────────────────
   viewPills: {
     flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingTop: 12,
-    paddingBottom: 8,
+    borderBottomWidth: 3, borderBottomColor: INK,
+    backgroundColor: CREAM,
   },
   viewPill: {
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderRadius: 4,
-    backgroundColor: '#fff',
-    borderWidth: 3,
-    borderColor: '#000',
-    shadowColor: '#000',
-    shadowOffset: { width: 3, height: 3 },
-    shadowOpacity: 1,
-    shadowRadius: 0,
+    flex: 1, paddingVertical: 12, paddingHorizontal: 16,
+    backgroundColor: 'transparent',
+    borderRightWidth: 2, borderRightColor: INK,
+    alignItems: 'center',
   },
-  viewPillActive: { backgroundColor: '#000' },
+  viewPillActive: { backgroundColor: INK },
   viewPillText: {
-    color: '#000',
-    fontWeight: '900',
-    fontSize: 13,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    color: INK, fontFamily: 'WorkSans',
+    fontWeight: '900', fontSize: 12,
+    textTransform: 'uppercase', letterSpacing: 0.5,
   },
   viewPillTextActive: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    color: LIME, fontFamily: 'WorkSans',
+    fontWeight: '900', fontSize: 12,
+    textTransform: 'uppercase', letterSpacing: 0.5,
   },
+
+  // ── Bundles / cards ───────────────────────────────────────────────────
   bundle: {
-    marginBottom: 20,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 6,
+    marginBottom: 14,
+    backgroundColor: '#fff',
     padding: 14,
-    borderWidth: 3,
-    borderColor: '#000',
-    shadowColor: '#000',
-    shadowOffset: { width: 4, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 0,
+    borderWidth: 3, borderColor: INK,
+    shadowColor: INK, shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 1, shadowRadius: 0,
   },
   bundleHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row', alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 4,
-    marginBottom: 8,
-    gap: 8,
+    paddingHorizontal: 4, marginBottom: 8, gap: 8,
   },
-  donor: { fontSize: 16, fontWeight: '700', textTransform: 'capitalize' },
-  pickupRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 2,
+  donor: {
+    fontFamily: 'WorkSans', fontWeight: '900',
+    fontSize: 16, color: INK, textTransform: 'capitalize',
   },
-  pickupText: { fontSize: 11, fontWeight: '600' },
+  pickupRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  pickupText: {
+    fontFamily: 'WorkSans', fontWeight: '600',
+    fontSize: 11, color: INK,
+  },
   contact: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: '#111',
+    paddingHorizontal: 14, paddingVertical: 8,
+    backgroundColor: INK,
+    borderWidth: 3, borderColor: INK,
   },
-  contactText: { color: '#fff', fontWeight: '600', fontSize: 13 },
+  contactText: {
+    color: LIME, fontFamily: 'WorkSans',
+    fontWeight: '900', fontSize: 13,
+    textTransform: 'uppercase', letterSpacing: 0.5,
+  },
   outgoingRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingVertical: 8,
-    gap: 12,
-    position: 'relative',
+    flexDirection: 'row', alignItems: 'flex-start',
+    paddingVertical: 8, gap: 12, position: 'relative',
   },
   outgoingTile: { width: 110 },
-  // paddingRight reserves room so titles don't slide under the corner pill.
   outgoingMeta: {
-    flex: 1,
-    justifyContent: 'flex-start',
-    gap: 6,
-    paddingTop: 2,
-    paddingRight: 72,
+    flex: 1, justifyContent: 'flex-start',
+    gap: 6, paddingTop: 2, paddingRight: 72,
   },
   statusCorner: { position: 'absolute', top: 4, right: 4, zIndex: 2 },
   contactWide: {
     marginTop: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 4,
-    backgroundColor: '#000',
-    borderWidth: 3,
-    borderColor: '#000',
-    shadowColor: '#000',
-    shadowOffset: { width: 4, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 0,
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'center', gap: 6,
+    paddingVertical: 12, paddingHorizontal: 16,
+    backgroundColor: INK,
+    borderWidth: 3, borderColor: INK,
+    shadowColor: INK, shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 1, shadowRadius: 0,
   },
   itemTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111',
-    textTransform: 'capitalize',
+    fontFamily: 'WorkSans', fontWeight: '900',
+    fontSize: 16, color: INK, textTransform: 'capitalize',
   },
   itemSubtitle: {
-    color: '#666',
-    fontSize: 13,
-    textTransform: 'capitalize',
+    fontFamily: 'WorkSans', fontWeight: '500',
+    color: INK, opacity: 0.65, fontSize: 13, textTransform: 'capitalize',
   },
-  pillRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 4,
-    marginTop: 2,
-  },
+  pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 2 },
   metaPill: {
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-    borderRadius: 999,
-    backgroundColor: '#f0eee8',
+    paddingVertical: 3, paddingHorizontal: 8,
+    backgroundColor: PAPER,
+    borderWidth: 2, borderColor: INK,
   },
   metaPillText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#444',
-    textTransform: 'capitalize',
+    fontFamily: 'WorkSans', fontWeight: '700',
+    fontSize: 11, color: INK, textTransform: 'capitalize',
   },
   pickupNote: {
-    color: '#555',
-    fontSize: 13,
-    fontStyle: 'italic',
-    marginTop: 2,
+    fontFamily: 'WorkSans', fontWeight: '500',
+    color: INK, opacity: 0.65, fontSize: 13, marginTop: 2,
   },
   deadline: {
-    color: '#7a5b00',
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: 2,
+    fontFamily: 'WorkSans', fontWeight: '700',
+    color: SUN, fontSize: 12, marginTop: 2,
+    textTransform: 'uppercase', letterSpacing: 0.3,
   },
   statusPill: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: '#000',
+    paddingHorizontal: 10, paddingVertical: 4,
+    borderWidth: 2, borderColor: INK,
   },
   statusPillText: {
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
+    fontFamily: 'WorkSans', fontWeight: '900',
+    fontSize: 11, letterSpacing: 0.6, textTransform: 'uppercase',
   },
   action: {
-    paddingVertical: 9,
-    paddingHorizontal: 14,
-    borderRadius: 4,
+    paddingVertical: 9, paddingHorizontal: 14,
     alignSelf: 'flex-start',
-    borderWidth: 2,
-    borderColor: '#000',
+    borderWidth: 2, borderColor: INK,
+    shadowColor: INK, shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 1, shadowRadius: 0,
   },
-  actionPrimary: { backgroundColor: '#000' },
+  actionPrimary: { backgroundColor: INK },
   actionPrimaryText: {
-    color: '#fff',
-    fontWeight: '900',
-    fontSize: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    color: LIME, fontFamily: 'WorkSans',
+    fontWeight: '900', fontSize: 12,
+    textTransform: 'uppercase', letterSpacing: 0.5,
   },
-  actionMuted: { backgroundColor: '#FFFFFF' },
+  actionMuted: { backgroundColor: CREAM },
   actionMutedText: {
-    color: '#000',
-    fontWeight: '900',
-    fontSize: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    color: INK, fontFamily: 'WorkSans',
+    fontWeight: '900', fontSize: 12,
+    textTransform: 'uppercase', letterSpacing: 0.5,
   },
-  muted: { color: '#777', fontSize: 13 },
+  muted: {
+    fontFamily: 'WorkSans', fontWeight: '500',
+    color: INK, opacity: 0.55, fontSize: 13,
+  },
   thumb: {
-    width: 56,
-    height: 56,
-    borderRadius: 12,
-    backgroundColor: '#eee',
+    width: 56, height: 56,
+    backgroundColor: PAPER,
+    borderWidth: 2, borderColor: INK,
     overflow: 'hidden',
   },
   thumbImg: { width: '100%', height: '100%' },
   requesterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row', alignItems: 'center',
     paddingVertical: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#eee',
+    borderTopWidth: 2, borderTopColor: INK,
   },
-  requesterName: { fontSize: 16, fontWeight: '600' },
+  requesterName: {
+    fontFamily: 'WorkSans', fontWeight: '800',
+    fontSize: 16, color: INK,
+  },
   requesterActions: { flexDirection: 'row', gap: 8 },
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+
+  // ── Contact sheet ─────────────────────────────────────────────────────
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: '#fff',
+    backgroundColor: CREAM,
     padding: 24,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopWidth: 3, borderTopColor: INK,
+    borderLeftWidth: 3, borderLeftColor: INK,
+    borderRightWidth: 3, borderRightColor: INK,
     gap: 8,
+    shadowColor: INK, shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 1, shadowRadius: 0,
   },
-  sheetTitle: { fontSize: 18, fontWeight: '700' },
-  sheetEmpty: { color: '#777', marginTop: 12, fontSize: 13 },
+  sheetHandle: {
+    width: 60, height: 5, backgroundColor: INK,
+    alignSelf: 'center', marginBottom: 14,
+  },
+  sheetTitle: {
+    fontFamily: 'WorkSans', fontWeight: '900',
+    fontSize: 22, color: INK, letterSpacing: -0.3,
+  },
+  sheetEmpty: {
+    fontFamily: 'WorkSans', fontWeight: '500',
+    color: INK, opacity: 0.65, marginTop: 12, fontSize: 13,
+  },
   row: {
     paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: '#eee',
+    borderBottomWidth: 2, borderBottomColor: INK,
   },
-  rowLabel: { color: '#888', fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-  rowValue: { fontSize: 16, marginTop: 2 },
+  rowLabel: {
+    fontFamily: 'WorkSans', fontWeight: '700',
+    color: INK, opacity: 0.55, fontSize: 10,
+    textTransform: 'uppercase', letterSpacing: 0.8,
+  },
+  rowValue: {
+    fontFamily: 'WorkSans', fontWeight: '800',
+    fontSize: 16, color: INK, marginTop: 2,
+  },
   close: {
-    marginTop: 16,
-    padding: 14,
-    borderRadius: 12,
-    backgroundColor: '#eee',
+    marginTop: 8, padding: 14,
+    backgroundColor: INK,
+    borderWidth: 3, borderColor: INK,
     alignItems: 'center',
+    shadowColor: INK, shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 1, shadowRadius: 0,
   },
-  closeText: { fontWeight: '600', fontSize: 13 },
+  closeText: {
+    color: LIME, fontFamily: 'WorkSans',
+    fontWeight: '900', textTransform: 'uppercase',
+    letterSpacing: 0.8, fontSize: 13,
+  },
 });

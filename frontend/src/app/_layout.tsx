@@ -8,15 +8,15 @@ import type { Session } from '@supabase/supabase-js';
 import { Splash } from '@/components/Splash';
 import { supabase } from '@/lib/supabase';
 
-// All four font files live in frontend/assets/fonts/. Work Sans is a
-// variable font (wght axis), so we only need two files — one upright, one
-// italic — and let `fontWeight` pick the right weight at render time.
-// DM Serif Display is non-variable but only needs Regular + Italic anyway.
+// Font files live in frontend/assets/fonts/. Work Sans is a variable font
+// (wght axis) so we only need two files. Cherry Bomb One is the WearAble
+// display/emphasis font used for standout words.
 const FONT_ASSETS = {
   'WorkSans': require('../../assets/fonts/WorkSans-VariableFont_wght.ttf'),
   'WorkSans-Italic': require('../../assets/fonts/WorkSans-Italic-VariableFont_wght.ttf'),
   'DMSerifDisplay-Regular': require('../../assets/fonts/DMSerifDisplay-Regular.ttf'),
   'DMSerifDisplay-Italic': require('../../assets/fonts/DMSerifDisplay-Italic.ttf'),
+  'CherryBombOne-Regular': require('../../assets/fonts/CherryBombOne-Regular.ttf'),
 };
 
 // React Native's `Text` is a plain function component (TextImpl), not a

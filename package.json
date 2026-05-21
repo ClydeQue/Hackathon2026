@@ -1,0 +1,23 @@
+{
+  "name": "hackathon2026",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently --names \"backend,expo\" --prefix-colors \"cyan,magenta\" \"npm --prefix backend run dev\" \"npm --prefix frontend run start\"",
+    "dev:tunnel": "concurrently --names \"backend,expo\" --prefix-colors \"cyan,magenta\" \"npm --prefix backend run dev\" \"npm --prefix frontend run tunnel\"",
+    "dev:web": "concurrently --names \"backend,expo-web\" --prefix-colors \"cyan,magenta\" \"npm --prefix backend run dev\" \"npm --prefix frontend run web\"",
+    "backend": "npm --prefix backend run dev",
+    "frontend": "npm --prefix frontend run start",
+    "frontend:tunnel": "npm --prefix frontend run tunnel",
+    "frontend:web": "npm --prefix frontend run web",
+    "install:all": "npm --prefix backend install && npm --prefix frontend install"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.10",
+    "concurrently": "^9.1.2",
+    "typescript": "~5.9.2"
+  },
+  "dependencies": {
+    "expo": "^55.0.25"
+  }
+}

@@ -247,7 +247,7 @@ export default function DonateListing() {
         <Stack.Screen options={{ headerShown: true, title: 'Listed' }} />
         <View style={styles.center}>
           <View style={styles.successIcon}>
-            <Ionicons name="checkmark" size={42} color="#fff" />
+            <Ionicons name="checkmark" size={42} color="#0F1117" />
           </View>
           <Text style={styles.successTitle}>Your listing is live.</Text>
           <Text style={styles.successBody}>
@@ -259,14 +259,14 @@ export default function DonateListing() {
               style={[styles.btn, styles.btnPrimary]}
               onPress={() => router.replace('/(tabs)/discover')}
             >
-              <Ionicons name="compass-outline" size={16} color="#fff" />
+              <Ionicons name="compass-outline" size={16} color="#F4FF61" />
               <Text style={styles.btnPrimaryText}>View Discover</Text>
             </Pressable>
             <Pressable
               style={[styles.btn, styles.btnGhost]}
               onPress={() => router.replace('/(tabs)')}
             >
-              <Ionicons name="shirt-outline" size={16} color="#111" />
+              <Ionicons name="shirt-outline" size={16} color="#0F1117" />
               <Text style={styles.btnGhostText}>Back to closet</Text>
             </Pressable>
           </View>
@@ -494,7 +494,7 @@ export default function DonateListing() {
                   <Ionicons
                     name={isListed ? 'sync-outline' : 'paper-plane-outline'}
                     size={16}
-                    color="#fff"
+                    color="#F4FF61"
                   />
                   <Text style={styles.btnPrimaryText}>
                     {isListed ? 'Update listing' : 'Publish listing'}
@@ -512,7 +512,7 @@ export default function DonateListing() {
                 <Spinner color="#111" />
               ) : (
                 <>
-                  <Ionicons name="save-outline" size={16} color="#111" />
+                  <Ionicons name="save-outline" size={16} color="#0F1117" />
                   <Text style={styles.btnGhostText}>Save as draft</Text>
                 </>
               )}
@@ -528,7 +528,7 @@ export default function DonateListing() {
                   <Spinner color="#a00" />
                 ) : (
                   <>
-                    <Ionicons name="eye-off-outline" size={16} color="#a00" />
+                    <Ionicons name="eye-off-outline" size={16} color="#EEF4FB" />
                     <Text style={styles.btnDangerText}>Unlist</Text>
                   </>
                 )}
@@ -542,8 +542,15 @@ export default function DonateListing() {
   );
 }
 
+const INK = '#0F1117';
+const CREAM = '#EEF4FB';
+const PAPER = '#DCEAF6';
+const LIME = '#F4FF61';
+const SUN = '#FFAE2D';
+const CORAL = '#FF5C4D';
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, backgroundColor: CREAM },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   scroll: { padding: 20, paddingBottom: 60, gap: 4 },
 
@@ -551,9 +558,14 @@ const styles = StyleSheet.create({
   previewBox: {
     width: 84,
     height: 84,
-    borderRadius: 14,
     overflow: 'hidden',
-    backgroundColor: '#eee',
+    backgroundColor: PAPER,
+    borderWidth: 3,
+    borderColor: INK,
+    shadowColor: INK,
+    shadowOffset: { width: 3, height: 3 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
   },
   previewFallback: {
     flex: 1,
@@ -561,7 +573,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   preview: { width: '100%', height: '100%' },
-  previewMeta: { fontSize: 16, fontWeight: '700', textTransform: 'capitalize' },
+  previewMeta: {
+    fontSize: 16,
+    fontFamily: 'WorkSans',
+    fontWeight: '800',
+    textTransform: 'capitalize',
+    color: INK,
+  },
   previewPillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   previewPill: {
     flexDirection: 'row',
@@ -569,13 +587,14 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingVertical: 3,
     paddingHorizontal: 8,
-    borderRadius: 999,
-    backgroundColor: '#f0eee8',
+    backgroundColor: PAPER,
+    borderWidth: 2,
+    borderColor: INK,
   },
   previewPillText: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#444',
+    fontWeight: '700',
+    color: INK,
     textTransform: 'capitalize',
   },
 
@@ -586,10 +605,11 @@ const styles = StyleSheet.create({
     marginTop: 18,
     marginBottom: 6,
     padding: 12,
-    borderRadius: 12,
-    backgroundColor: '#f7f6f1',
+    backgroundColor: PAPER,
+    borderWidth: 2,
+    borderColor: INK,
   },
-  introText: { color: '#444', fontSize: 13, lineHeight: 19, flex: 1 },
+  introText: { color: INK, opacity: 0.75, fontSize: 13, lineHeight: 19, flex: 1 },
 
   labelRow: {
     flexDirection: 'row',
@@ -597,29 +617,39 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: 16,
   },
-  label: { fontWeight: '700', color: '#111', fontSize: 14 },
-  required: { color: '#c00' },
+  label: {
+    fontFamily: 'WorkSans',
+    fontWeight: '800',
+    color: INK,
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  required: { color: CORAL },
   input: {
     marginTop: 6,
     borderWidth: 3,
-    borderColor: '#000',
-    borderRadius: 4,
+    borderColor: INK,
     padding: 12,
     fontSize: 16,
     backgroundColor: '#fff',
     fontWeight: '700',
-    color: '#000',
+    color: INK,
+    shadowColor: INK,
+    shadowOffset: { width: 3, height: 3 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
   },
   inputMultiline: { minHeight: 96, textAlignVertical: 'top' },
-  inputError: { borderColor: '#c00' },
+  inputError: { borderColor: CORAL },
   errorRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     marginTop: 4,
   },
-  errorText: { color: '#c00', fontSize: 13 },
-  helper: { color: '#888', fontSize: 12, marginTop: 4 },
+  errorText: { color: CORAL, fontSize: 13, fontWeight: '700' },
+  helper: { color: INK, opacity: 0.55, fontSize: 12, marginTop: 4 },
 
   meterWrap: {
     flexDirection: 'row',
@@ -630,20 +660,21 @@ const styles = StyleSheet.create({
   meterTrack: {
     flex: 1,
     height: 6,
-    borderRadius: 3,
-    backgroundColor: '#eee',
+    backgroundColor: PAPER,
     overflow: 'hidden',
     position: 'relative',
+    borderWidth: 2,
+    borderColor: INK,
   },
-  meterFill: { height: '100%', borderRadius: 3 },
+  meterFill: { height: '100%' },
   meterMinTick: {
     position: 'absolute',
     top: -2,
     width: 1,
     height: 10,
-    backgroundColor: '#999',
+    backgroundColor: INK,
   },
-  meterText: { fontSize: 11, fontWeight: '600', minWidth: 70, textAlign: 'right' },
+  meterText: { fontSize: 11, fontWeight: '700', minWidth: 70, textAlign: 'right', color: INK },
 
   deadlineChip: {
     alignSelf: 'flex-start',
@@ -652,52 +683,57 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingVertical: 4,
     paddingHorizontal: 10,
-    borderRadius: 999,
     marginTop: 6,
+    borderWidth: 2,
+    borderColor: INK,
   },
   deadlineChipText: { fontSize: 12, fontWeight: '700' },
 
   actions: { marginTop: 24, gap: 10 },
   actionsHint: {
-    color: '#555',
+    color: INK,
+    opacity: 0.65,
     fontSize: 13,
     textAlign: 'center',
     marginBottom: 6,
+    fontWeight: '600',
   },
   btn: {
     flexDirection: 'row',
     gap: 8,
     paddingVertical: 14,
     paddingHorizontal: 16,
-    borderRadius: 4,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: '#000',
-    shadowColor: '#000',
+    borderColor: INK,
+    shadowColor: INK,
     shadowOffset: { width: 4, height: 4 },
     shadowOpacity: 1,
     shadowRadius: 0,
   },
-  btnPrimary: { backgroundColor: '#000' },
+  btnPrimary: { backgroundColor: INK },
   btnPrimaryText: {
-    color: '#fff',
+    color: LIME,
+    fontFamily: 'WorkSans',
     fontWeight: '900',
     fontSize: 14,
     textTransform: 'uppercase',
     letterSpacing: 0.7,
   },
-  btnGhost: { backgroundColor: '#fff' },
+  btnGhost: { backgroundColor: CREAM },
   btnGhostText: {
-    color: '#000',
+    color: INK,
+    fontFamily: 'WorkSans',
     fontWeight: '900',
     fontSize: 14,
     textTransform: 'uppercase',
     letterSpacing: 0.7,
   },
-  btnDanger: { backgroundColor: '#FF6B6B' },
+  btnDanger: { backgroundColor: CORAL },
   btnDangerText: {
-    color: '#000',
+    color: CREAM,
+    fontFamily: 'WorkSans',
     fontWeight: '900',
     fontSize: 14,
     textTransform: 'uppercase',
@@ -711,31 +747,39 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 999,
-    backgroundColor: '#e6f6ec',
+    backgroundColor: LIME,
+    borderWidth: 2,
+    borderColor: INK,
   },
-  statusPillListedText: { color: '#0a7f33', fontWeight: '700', fontSize: 12 },
+  statusPillListedText: { color: INK, fontWeight: '800', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.4 },
   statusPillDraft: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 999,
-    backgroundColor: '#fff3cf',
+    backgroundColor: SUN,
+    borderWidth: 2,
+    borderColor: INK,
   },
-  statusPillDraftText: { color: '#9b6b00', fontWeight: '700', fontSize: 12 },
+  statusPillDraftText: { color: INK, fontWeight: '800', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.4 },
 
   successIcon: {
     width: 72,
     height: 72,
-    borderRadius: 36,
-    backgroundColor: '#0a7f33',
+    backgroundColor: LIME,
+    borderWidth: 3,
+    borderColor: INK,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    shadowColor: INK,
+    shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
   },
-  successTitle: { fontSize: 22, fontWeight: '800' },
+  successTitle: { fontSize: 22, fontFamily: 'WorkSans', fontWeight: '900', color: INK },
   successBody: {
     marginTop: 10,
-    color: '#444',
+    color: INK,
+    opacity: 0.7,
     textAlign: 'center',
     lineHeight: 20,
   },

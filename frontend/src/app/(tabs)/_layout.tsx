@@ -17,7 +17,7 @@ function CenterAddButton(props: BottomTabBarButtonProps) {
       style={styles.centerButton}
     >
       <View style={styles.centerCircle}>
-        <Ionicons name="add" size={30} color="#000" />
+        <Ionicons name="camera-outline" size={26} color="#EEF4FB" />
       </View>
     </Pressable>
   );
@@ -120,12 +120,15 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: true,
-        tabBarActiveTintColor: '#111',
-        tabBarInactiveTintColor: '#9a9a9a',
         tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.tabLabel,
-        // Profile is reachable from every tab via the header. The Profile
-        // screen itself overrides this in its own Stack.Screen options.
+        tabBarActiveTintColor: '#F4FF61',
+        tabBarInactiveTintColor: '#0F1117',
+        tabBarActiveBackgroundColor: '#0F1117',
+        tabBarInactiveBackgroundColor: '#EEF4FB',
+        headerStyle: styles.header,
+        headerTitleStyle: styles.headerTitle,
+        // Profile is reachable from every tab via the header.
         headerRight: () => <HeaderProfileButton />,
       }}
     >
@@ -141,9 +144,10 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="discover"
         options={{
+          headerShown: false,
           title: 'Discover',
           tabBarIcon: ({ color, size }) => (
-            <TabIcon name="heart-outline" color={color} size={size} />
+            <TabIcon name="compass-outline" color={color} size={size} />
           ),
         }}
       />
@@ -155,20 +159,20 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="box"
-        options={{
-          title: 'Box',
-          tabBarIcon: ({ color, size }) => (
-            <TabIcon name="bag-outline" color={color} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="donations"
         options={{
           title: 'Donate',
           tabBarIcon: ({ color, size }) => (
             <TabIcon name="gift-outline" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="box"
+        options={{
+          title: 'Loved',
+          tabBarIcon: ({ color, size }) => (
+            <TabIcon name="heart-outline" color={color} size={size} />
           ),
         }}
       />
@@ -193,35 +197,57 @@ const styles = StyleSheet.create({
   headerAvatar: {
     width: 30,
     height: 30,
-    borderRadius: 15,
-    backgroundColor: '#eee',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#ddd',
+    borderRadius: 0,
+    backgroundColor: '#C8DBF0',
+    borderWidth: 2,
+    borderColor: '#0F1117',
+  },
+  header: {
+    backgroundColor: '#EEF4FB',
+    borderBottomWidth: 3,
+    borderBottomColor: '#0F1117',
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+  headerTitle: {
+    fontFamily: 'WorkSans',
+    fontWeight: '900',
+    fontSize: 16,
+    color: '#0F1117',
+    letterSpacing: -0.2,
+    textTransform: 'uppercase',
   },
   tabBar: {
-    height: 70,
-    paddingTop: 6,
-    paddingBottom: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#eee',
+    height: 68,
+    paddingTop: 0,
+    paddingBottom: 0,
+    borderTopWidth: 3,
+    borderTopColor: '#0F1117',
+    backgroundColor: '#EEF4FB',
   },
-  tabLabel: { fontSize: 11, fontWeight: '500' },
+  tabLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: 4,
+  },
   centerButton: {
-    top: -18,
+    top: -16,
     justifyContent: 'center',
     alignItems: 'center',
     flex: 1,
   },
   centerCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 6,
-    backgroundColor: '#FFE66D',
+    width: 58,
+    height: 58,
+    borderRadius: 0,
+    backgroundColor: '#F4FF61',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
-    borderColor: '#000',
-    shadowColor: '#000',
+    borderColor: '#0F1117',
+    shadowColor: '#0F1117',
     shadowOffset: { width: 4, height: 4 },
     shadowOpacity: 1,
     shadowRadius: 0,

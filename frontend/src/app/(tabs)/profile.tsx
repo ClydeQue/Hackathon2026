@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  Animated,
   KeyboardAvoidingView,
   Linking,
   Modal,
@@ -27,7 +28,6 @@ import {
 } from 'react-native-safe-area-context';
 import { MapPin } from '@/components/MapPin';
 import { AVATAR_BUCKET, avatarPublicUrl, supabase } from '@/lib/supabase';
-import { DM_SERIF } from '@/lib/fonts';
 import type { Profile } from '@/types';
 
 function base64ToBytes(b64: string): Uint8Array {
@@ -38,6 +38,10 @@ function base64ToBytes(b64: string): Uint8Array {
 }
 
 export default function ProfileScreen() {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+  }, []);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -219,6 +223,7 @@ export default function ProfileScreen() {
     .slice(0, 2);
 
   return (
+    <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
@@ -399,6 +404,7 @@ export default function ProfileScreen() {
         }}
       />
     </SafeAreaView>
+    </Animated.View>
   );
 }
 
@@ -602,36 +608,37 @@ function PickupPickerModal({
 }
 
 const pickerStyles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fafafa' },
+  container: { flex: 1, backgroundColor: '#EEF4FB' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 6,
     paddingVertical: 6,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e3e3e3',
-    backgroundColor: '#fff',
+    borderBottomWidth: 3,
+    borderBottomColor: '#0F1117',
+    backgroundColor: '#EEF4FB',
   },
   headerBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 10,
-    borderRadius: 10,
     minWidth: 92,
   },
   headerBtnLeft: { justifyContent: 'flex-start', gap: 2 },
   headerBtnRight: { justifyContent: 'flex-end' },
-  headerBtnPressed: { backgroundColor: '#f0f0f0' },
-  headerCancel: { color: '#444', fontWeight: '600', fontSize: 15 },
-  headerTitle: { fontWeight: '700', fontSize: 16 },
+  headerBtnPressed: { backgroundColor: '#DCEAF6' },
+  headerCancel: { color: '#0F1117', fontWeight: '700', fontSize: 14, textTransform: 'uppercase', letterSpacing: 0.5 },
+  headerTitle: { fontWeight: '900', fontSize: 15, color: '#0F1117' },
   headerSave: {
-    color: '#0a7f33',
-    fontWeight: '800',
-    fontSize: 15,
+    color: '#2A6FDB',
+    fontWeight: '900',
+    fontSize: 14,
     textAlign: 'right',
     flex: 1,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   searchRow: {
     flexDirection: 'row',
@@ -639,58 +646,60 @@ const pickerStyles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: '#fff',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#eee',
+    backgroundColor: '#EEF4FB',
+    borderBottomWidth: 3,
+    borderBottomColor: '#0F1117',
   },
   searchInput: {
     flex: 1,
     paddingVertical: 8,
     paddingHorizontal: 6,
     fontSize: 15,
+    fontWeight: '600',
+    color: '#0F1117',
   },
   searchBtn: {
-    backgroundColor: '#111',
+    backgroundColor: '#0F1117',
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 999,
     minWidth: 60,
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#0F1117',
   },
-  searchBtnText: { color: '#fff', fontWeight: '700' },
-  mapWrap: { flex: 1, backgroundColor: '#f3efe8' },
+  searchBtnText: { color: '#F4FF61', fontWeight: '900', textTransform: 'uppercase', fontSize: 12 },
+  mapWrap: { flex: 1, backgroundColor: '#DCEAF6' },
   footer: {
     paddingHorizontal: 20,
     paddingVertical: 14,
-    backgroundColor: '#fff',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#eee',
+    backgroundColor: '#EEF4FB',
+    borderTopWidth: 3,
+    borderTopColor: '#0F1117',
     gap: 4,
   },
-  footerHint: { color: '#666', fontSize: 12 },
+  footerHint: { color: '#0F1117', opacity: 0.6, fontSize: 12 },
   footerAddress: {
-    color: '#111',
-    fontWeight: '600',
+    color: '#0F1117',
+    fontWeight: '700',
     fontSize: 14,
     marginTop: 4,
   },
-  footerCoords: { color: '#888', fontSize: 11, fontVariant: ['tabular-nums'] },
+  footerCoords: { color: '#0F1117', opacity: 0.5, fontSize: 11, fontVariant: ['tabular-nums'] },
 });
 
 const AVATAR_SIZE = 112;
 
-// Brutalist tokens — thick black borders, hard offset shadows (low blur, big
-// offset), warm off-white background, red & yellow accents.
-const BR_BORDER = '#111';
-const BR_BG = '#fdfaf2';
-const BR_RED = '#d63a2f';
-const BR_YELLOW = '#ffe14a';
+// WearAble design tokens
+const BR_BORDER = '#0F1117';
+const BR_BG = '#EEF4FB';
+const BR_RED = '#2A6FDB';
+const BR_YELLOW = '#F4FF61';
 const BR_SHADOW = {
-  shadowColor: '#000',
-  shadowOpacity: 0.18,
+  shadowColor: '#0F1117',
+  shadowOpacity: 1,
   shadowRadius: 0,
-  shadowOffset: { width: 3, height: 4 },
-  elevation: 3,
+  shadowOffset: { width: 4, height: 4 },
+  elevation: 0,
 };
 
 const styles = StyleSheet.create({
@@ -703,36 +712,43 @@ const styles = StyleSheet.create({
   avatar: {
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
-    borderRadius: AVATAR_SIZE / 2,
-    backgroundColor: '#fff',
-    borderWidth: 2,
+    borderRadius: 0,
+    backgroundColor: '#DCEAF6',
+    borderWidth: 3,
     borderColor: BR_BORDER,
   },
   avatarFallback: { justifyContent: 'center', alignItems: 'center' },
-  avatarInitials: { fontSize: 36, fontWeight: '900', color: '#111' },
+  avatarInitials: {
+    fontFamily: 'CherryBombOne-Regular',
+    fontSize: 40,
+    fontWeight: '400',
+    color: '#0F1117',
+  },
   avatarEdit: {
     position: 'absolute',
-    right: 2,
-    bottom: 6,
+    right: -6,
+    bottom: -6,
     width: 34,
     height: 34,
-    borderRadius: 17,
-    backgroundColor: BR_RED,
-    borderWidth: 2,
+    backgroundColor: BR_YELLOW,
+    borderWidth: 3,
     borderColor: BR_BORDER,
     justifyContent: 'center',
     alignItems: 'center',
   },
   displayName: {
-    fontFamily: DM_SERIF.regular,
-    fontSize: 30,
-    color: '#111',
-    marginTop: 18,
+    fontFamily: 'WorkSans',
+    fontWeight: '900',
+    fontSize: 28,
+    color: '#0F1117',
+    marginTop: 20,
     maxWidth: '90%',
     textAlign: 'center',
+    letterSpacing: -0.4,
   },
   email: {
-    color: '#666',
+    color: '#0F1117',
+    opacity: 0.6,
     marginTop: 4,
     fontSize: 13,
     fontWeight: '600',
@@ -740,66 +756,66 @@ const styles = StyleSheet.create({
 
   card: {
     backgroundColor: '#fff',
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: BR_BORDER,
-    borderRadius: 12,
     padding: 16,
     gap: 4,
     ...BR_SHADOW,
   },
-  // Red pill tag instead of a plain section heading — matches the onboarding
-  // "STEP 1 OF 2" chip.
   section: {
     alignSelf: 'flex-start',
-    color: '#fff',
+    color: '#EEF4FB',
     backgroundColor: BR_RED,
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 1.2,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 999,
-    overflow: 'hidden',
     textTransform: 'uppercase',
     marginBottom: 8,
+    borderWidth: 2,
+    borderColor: BR_BORDER,
   },
   label: {
     fontWeight: '800',
-    fontSize: 11,
+    fontSize: 10,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
     marginTop: 12,
-    color: '#111',
+    color: '#0F1117',
   },
   hint: {
-    color: '#666',
+    color: '#0F1117',
+    opacity: 0.6,
     fontSize: 12,
     marginBottom: 4,
     lineHeight: 18,
   },
   input: {
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: BR_BORDER,
-    borderRadius: 8,
     padding: 12,
     fontSize: 15,
-    fontWeight: '500',
+    fontWeight: '600',
     marginTop: 6,
     backgroundColor: '#fff',
+    shadowColor: BR_BORDER,
+    shadowOffset: { width: 3, height: 3 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
   },
 
   button: {
-    backgroundColor: '#111',
+    backgroundColor: '#0F1117',
     paddingVertical: 18,
-    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: BR_BORDER,
     ...BR_SHADOW,
   },
   buttonText: {
-    color: '#fff',
+    color: '#F4FF61',
     fontSize: 14,
     fontWeight: '900',
     letterSpacing: 1.5,
@@ -815,8 +831,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   signOutText: {
-    color: '#a00',
-    fontWeight: '800',
+    color: '#FF5C4D',
+    fontWeight: '900',
     fontSize: 12,
     letterSpacing: 1,
     textTransform: 'uppercase',
@@ -824,8 +840,7 @@ const styles = StyleSheet.create({
 
   map: {
     height: 180,
-    borderRadius: 8,
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: BR_BORDER,
     overflow: 'hidden',
   },
@@ -844,34 +859,36 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 999,
-    backgroundColor: '#111',
-    borderWidth: 1.5,
+    backgroundColor: '#0F1117',
+    borderWidth: 2,
     borderColor: BR_BORDER,
   },
   mapPreviewBadgeText: {
-    color: '#fff',
+    color: '#F4FF61',
     fontWeight: '800',
     fontSize: 11,
     letterSpacing: 0.6,
     textTransform: 'uppercase',
   },
-  mapHelper: { marginTop: 8, color: '#666', fontSize: 12 },
+  mapHelper: { marginTop: 8, color: '#0F1117', opacity: 0.6, fontSize: 12 },
   mapOpenButton: {
     marginTop: 10,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    borderRadius: 8,
     backgroundColor: BR_YELLOW,
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: BR_BORDER,
     flexDirection: 'row',
     gap: 6,
     alignItems: 'center',
     alignSelf: 'flex-start',
+    shadowColor: BR_BORDER,
+    shadowOffset: { width: 3, height: 3 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
   },
   mapOpenButtonText: {
-    color: '#111',
+    color: '#0F1117',
     fontWeight: '800',
     fontSize: 12,
     letterSpacing: 0.5,
@@ -881,9 +898,8 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingVertical: 28,
     paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: '#fff8d6',
-    borderWidth: 2,
+    backgroundColor: '#DCEAF6',
+    borderWidth: 3,
     borderColor: BR_BORDER,
     borderStyle: 'dashed',
     alignItems: 'center',
@@ -891,7 +907,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   mapEmptyText: {
-    color: '#111',
+    color: '#0F1117',
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.6,
@@ -901,14 +917,17 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 8,
     backgroundColor: BR_YELLOW,
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: BR_BORDER,
     flexDirection: 'row',
     gap: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: BR_BORDER,
+    shadowOffset: { width: 3, height: 3 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
   },
   locationButtonText: {
     color: '#111',

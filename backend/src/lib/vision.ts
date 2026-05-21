@@ -133,7 +133,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 // gemini-2.5-pro is the higher-quality vision tier — better at fine-grained
 // material/color distinctions than -flash, in exchange for ~2x latency. Worth
 // the trade for catalog correctness.
-const MODEL = "gemini-2.5-flash";
+const MODEL = "gemini-1.5-flash";
 
 function normalizeCategory(value: unknown): Category {
   if (typeof value === "string") {

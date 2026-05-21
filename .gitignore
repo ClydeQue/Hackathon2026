@@ -37,3 +37,5 @@ web-build/
 
 # Logs
 *.log
+
+.env

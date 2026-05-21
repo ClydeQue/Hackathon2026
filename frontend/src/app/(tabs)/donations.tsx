@@ -1,5 +1,6 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Animated,
   Pressable,
   RefreshControl,
   SectionList,
@@ -12,7 +13,6 @@ import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { DM_SERIF } from '@/lib/fonts';
 import { signedPhotoUrl, supabase } from '@/lib/supabase';
 import type { ClothingItem } from '@/types';
 
@@ -77,6 +77,10 @@ function Thumb({ path }: { path: string }) {
 
 export default function Donations() {
   const router = useRouter();
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+  }, []);
   const [drafts, setDrafts] = useState<ClothingItem[]>([]);
   const [listed, setListed] = useState<ClothingItem[]>([]);
   const [completedCount, setCompletedCount] = useState(0);
@@ -160,13 +164,14 @@ export default function Donations() {
   const totalDonations = drafts.length + listed.length;
 
   return (
+    <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <View style={styles.header}>
-        <Text style={styles.title}>Donations</Text>
+        <Text style={styles.title}>You're giving.</Text>
         <Text style={styles.subtitle}>
           {totalDonations === 0
             ? 'Items you mark for donation show up here.'
-            : `${totalDonations} item${totalDonations === 1 ? '' : 's'} on the way out.`}
+            : `${totalDonations} item${totalDonations === 1 ? '' : 's'} on their way to someone new.`}
         </Text>
       </View>
 
@@ -174,20 +179,20 @@ export default function Donations() {
         <StatCard
           value={completedCount}
           label="Donated"
-          accent="#0a7f33"
-          tint="#e6f6ec"
+          accent="#0F1117"
+          tint="#F4FF61"
         />
         <StatCard
           value={interestedCount}
           label="Interested"
-          accent="#a8266b"
-          tint="#fbe7f0"
+          accent="#EEF4FB"
+          tint="#2A6FDB"
         />
         <StatCard
           value={listed.length}
           label="Listed"
-          accent="#0a4a8a"
-          tint="#e3eefb"
+          accent="#0F1117"
+          tint="#5BA3E8"
         />
       </View>
 
@@ -284,119 +289,129 @@ export default function Donations() {
         />
       )}
     </SafeAreaView>
+    </Animated.View>
   );
 }
 
-// Brutalist tokens shared with profile: thick black borders, hard offset
-// shadows, warm off-white background, red & yellow accents.
-const BR_BORDER = '#111';
-const BR_BG = '#fdfaf2';
-const BR_RED = '#d63a2f';
-const BR_YELLOW = '#ffe14a';
-const BR_SHADOW = {
-  shadowColor: '#000',
-  shadowOpacity: 0.18,
+const INK = '#0F1117';
+const CREAM = '#EEF4FB';
+const PAPER = '#DCEAF6';
+const PINK = '#2A6FDB';
+const LIME = '#F4FF61';
+const SUN = '#FFAE2D';
+const CORAL = '#FF5C4D';
+const HARD_SHADOW = {
+  shadowColor: INK,
+  shadowOpacity: 1,
   shadowRadius: 0,
-  shadowOffset: { width: 3, height: 4 },
-  elevation: 3,
+  shadowOffset: { width: 4, height: 4 },
+  elevation: 0,
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: BR_BG },
+  container: { flex: 1, backgroundColor: CREAM },
   header: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 10 },
-  title: { fontSize: 36, fontFamily: DM_SERIF.regular, color: '#111' },
-  subtitle: { color: '#444', marginTop: 4, fontSize: 14, fontWeight: '500' },
+  title: {
+    fontFamily: 'WorkSans',
+    fontSize: 32,
+    fontWeight: '900',
+    color: INK,
+    letterSpacing: -0.5,
+  },
+  subtitle: { color: INK, opacity: 0.65, marginTop: 4, fontSize: 14, fontWeight: '600' },
 
   statsRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
     paddingHorizontal: 20,
     paddingTop: 10,
     paddingBottom: 14,
   },
   statCard: {
     flex: 1,
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 10,
     gap: 4,
-    borderWidth: 2,
-    borderColor: BR_BORDER,
-    ...BR_SHADOW,
+    borderWidth: 3,
+    borderColor: INK,
+    ...HARD_SHADOW,
   },
-  statValue: { fontSize: 26, fontWeight: '900' },
+  statValue: {
+    fontFamily: 'CherryBombOne-Regular',
+    fontSize: 26,
+    fontWeight: '400',
+    color: INK,
+  },
   statLabel: {
-    fontSize: 10,
-    color: '#111',
-    fontWeight: '900',
+    fontSize: 9,
+    color: INK,
+    fontWeight: '700',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
+    opacity: 0.7,
   },
 
   analyticsBlock: { paddingHorizontal: 20, gap: 14, paddingBottom: 10 },
 
   breakdownCard: {
     backgroundColor: '#fff',
-    borderWidth: 2,
-    borderColor: BR_BORDER,
-    borderRadius: 12,
+    borderWidth: 3,
+    borderColor: INK,
     padding: 14,
     gap: 10,
-    ...BR_SHADOW,
+    ...HARD_SHADOW,
   },
   breakdownTitle: {
     alignSelf: 'flex-start',
-    color: '#fff',
-    backgroundColor: BR_RED,
+    color: CREAM,
+    backgroundColor: PINK,
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 1.1,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 999,
-    overflow: 'hidden',
     textTransform: 'uppercase',
+    borderWidth: 2,
+    borderColor: INK,
   },
   breakdownBar: {
     flexDirection: 'row',
     height: 14,
-    borderRadius: 0,
     overflow: 'hidden',
-    backgroundColor: '#eee',
-    borderWidth: 1.5,
-    borderColor: BR_BORDER,
+    backgroundColor: PAPER,
+    borderWidth: 2,
+    borderColor: INK,
   },
   breakdownSeg: { height: '100%' },
-  segDraft: { backgroundColor: BR_YELLOW },
-  segListed: { backgroundColor: '#3d8df4' },
-  segDone: { backgroundColor: '#0a7f33' },
-  segEmpty: { backgroundColor: '#eee' },
+  segDraft: { backgroundColor: SUN },
+  segListed: { backgroundColor: PINK },
+  segDone: { backgroundColor: LIME },
+  segEmpty: { backgroundColor: PAPER },
   legendRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   legend: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   legendDot: {
     width: 10,
     height: 10,
-    borderRadius: 0,
-    borderWidth: 1,
-    borderColor: BR_BORDER,
+    borderWidth: 2,
+    borderColor: INK,
   },
   legendText: {
-    fontSize: 11,
-    color: '#444',
+    fontSize: 10,
+    color: INK,
     fontWeight: '700',
-    letterSpacing: 0.3,
+    letterSpacing: 0.4,
     textTransform: 'uppercase',
+    opacity: 0.7,
   },
-  legendCount: { color: '#111', fontWeight: '900' },
+  legendCount: { color: INK, fontWeight: '900', opacity: 1 },
 
   chartCard: {
     backgroundColor: '#fff',
-    borderWidth: 2,
-    borderColor: BR_BORDER,
-    borderRadius: 12,
+    borderWidth: 3,
+    borderColor: INK,
     padding: 14,
     gap: 10,
-    ...BR_SHADOW,
+    ...HARD_SHADOW,
   },
   chartHeader: {
     flexDirection: 'row',
@@ -406,27 +421,26 @@ const styles = StyleSheet.create({
   chartHeaderIcon: {
     width: 32,
     height: 32,
-    borderRadius: 0,
-    backgroundColor: BR_YELLOW,
-    borderWidth: 1.5,
-    borderColor: BR_BORDER,
+    backgroundColor: LIME,
+    borderWidth: 2,
+    borderColor: INK,
     alignItems: 'center',
     justifyContent: 'center',
   },
   chartTitle: {
     alignSelf: 'flex-start',
-    color: '#fff',
-    backgroundColor: BR_RED,
+    color: CREAM,
+    backgroundColor: PINK,
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 1.1,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 999,
-    overflow: 'hidden',
     textTransform: 'uppercase',
+    borderWidth: 2,
+    borderColor: INK,
   },
-  chartSub: { fontSize: 13, color: '#444', marginTop: 6, fontWeight: '600' },
+  chartSub: { fontSize: 13, color: INK, marginTop: 6, fontWeight: '600', opacity: 0.7 },
   chartBars: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -438,22 +452,22 @@ const styles = StyleSheet.create({
   chartBarTrack: {
     width: '100%',
     height: 70,
-    backgroundColor: '#fff8d6',
-    borderRadius: 0,
+    backgroundColor: PAPER,
     overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: BR_BORDER,
+    borderWidth: 2,
+    borderColor: INK,
     justifyContent: 'flex-end',
   },
-  chartBarFill: { width: '100%', borderRadius: 0 },
+  chartBarFill: { width: '100%' },
   chartBarLabel: {
     fontSize: 10,
-    color: '#444',
+    color: INK,
     fontWeight: '700',
     letterSpacing: 0.4,
     textTransform: 'uppercase',
+    opacity: 0.7,
   },
-  chartBarCount: { fontSize: 12, color: '#111', fontWeight: '900' },
+  chartBarCount: { fontSize: 12, color: INK, fontWeight: '900' },
 
   center: {
     flex: 1,
@@ -464,23 +478,25 @@ const styles = StyleSheet.create({
   emptyIcon: {
     width: 72,
     height: 72,
-    borderRadius: 0,
-    backgroundColor: BR_YELLOW,
-    borderWidth: 2,
-    borderColor: BR_BORDER,
+    backgroundColor: LIME,
+    borderWidth: 3,
+    borderColor: INK,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
-    ...BR_SHADOW,
+    ...HARD_SHADOW,
   },
   emptyTitle: {
+    fontFamily: 'WorkSans',
     fontSize: 22,
     fontWeight: '900',
-    fontFamily: DM_SERIF.regular,
+    color: INK,
+    letterSpacing: -0.3,
   },
   emptyBody: {
     textAlign: 'center',
-    color: '#444',
+    color: INK,
+    opacity: 0.65,
     marginTop: 8,
     lineHeight: 20,
     fontSize: 14,
@@ -490,16 +506,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#111',
+    backgroundColor: INK,
     paddingVertical: 14,
     paddingHorizontal: 22,
-    borderRadius: 999,
-    borderWidth: 2,
-    borderColor: BR_BORDER,
-    ...BR_SHADOW,
+    borderWidth: 3,
+    borderColor: INK,
+    ...HARD_SHADOW,
   },
   ctaText: {
-    color: '#fff',
+    color: LIME,
     fontWeight: '900',
     fontSize: 13,
     letterSpacing: 1.3,
@@ -514,18 +529,18 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     alignSelf: 'flex-start',
-    color: '#fff',
-    backgroundColor: BR_RED,
+    color: CREAM,
+    backgroundColor: PINK,
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 1.1,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 999,
-    overflow: 'hidden',
     textTransform: 'uppercase',
+    borderWidth: 2,
+    borderColor: INK,
   },
-  sectionHint: { color: '#666', fontSize: 12, marginTop: 2, fontWeight: '500' },
+  sectionHint: { color: INK, opacity: 0.6, fontSize: 12, marginTop: 2, fontWeight: '600' },
 
   row: {
     flexDirection: 'row',
@@ -536,33 +551,35 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginBottom: 10,
     backgroundColor: '#fff',
-    borderWidth: 2,
-    borderColor: BR_BORDER,
-    borderRadius: 10,
-    ...BR_SHADOW,
+    borderWidth: 3,
+    borderColor: INK,
+    ...HARD_SHADOW,
   },
   thumb: {
     width: 60,
     height: 60,
-    borderRadius: 6,
-    backgroundColor: '#eee',
-    borderWidth: 1.5,
-    borderColor: BR_BORDER,
+    backgroundColor: PAPER,
+    borderWidth: 2,
+    borderColor: INK,
     overflow: 'hidden',
   },
   thumbImg: { width: '100%', height: '100%' },
   rowBody: { flex: 1, gap: 2 },
   rowTitle: {
-    fontSize: 16,
+    fontFamily: 'WorkSans',
+    fontSize: 15,
     fontWeight: '800',
     textTransform: 'capitalize',
-    color: '#111',
+    color: INK,
+    letterSpacing: -0.2,
   },
   rowMeta: {
-    color: '#666',
-    fontSize: 12,
-    textTransform: 'capitalize',
-    fontWeight: '500',
+    color: INK,
+    opacity: 0.6,
+    fontSize: 11,
+    textTransform: 'uppercase',
+    fontWeight: '700',
+    letterSpacing: 0.4,
   },
   pill: {
     alignSelf: 'flex-start',
@@ -571,25 +588,24 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 999,
     marginTop: 4,
-    borderWidth: 1.5,
-    borderColor: BR_BORDER,
+    borderWidth: 2,
+    borderColor: INK,
   },
-  pillDraft: { backgroundColor: BR_YELLOW },
+  pillDraft: { backgroundColor: SUN },
   pillDraftText: {
-    color: '#111',
-    fontSize: 10,
+    color: INK,
+    fontSize: 9,
     fontWeight: '900',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
     textTransform: 'uppercase',
   },
-  pillListed: { backgroundColor: '#cfe8d3' },
+  pillListed: { backgroundColor: LIME },
   pillListedText: {
-    color: '#0a4a1f',
-    fontSize: 10,
+    color: INK,
+    fontSize: 9,
     fontWeight: '900',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
     textTransform: 'uppercase',
   },
 });
